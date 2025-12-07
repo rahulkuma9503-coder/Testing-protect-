@@ -26,15 +26,16 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
-            overflow: hidden;
+            overflow: auto;
             position: relative;
+            padding: 20px;
         }
 
         /* The animated canvas background */
         #matrix-bg {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
@@ -46,17 +47,18 @@
             text-align: center;
             padding: 30px;
             border-radius: 15px;
-            background: rgba(10, 20, 10, 0.8);
+            background: rgba(10, 20, 10, 0.85);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(0, 255, 65, 0.3);
             box-shadow: 0 0 25px rgba(0, 255, 65, 0.2);
-            max-width: 500px;
             width: 90%;
+            max-width: 500px;
+            margin: 20px auto;
         }
 
         h1 {
             font-family: 'Orbitron', sans-serif;
-            font-size: 3em;
+            font-size: 2.5em;
             font-weight: 700;
             color: var(--neon-green);
             text-shadow: 
@@ -65,13 +67,15 @@
                 0 0 20px var(--neon-green-glow);
             animation: pulse 2s infinite alternate;
             margin-top: 0;
+            margin-bottom: 20px;
         }
 
         p {
-            font-size: 1.5em;
+            font-size: 1.2em;
             font-weight: 400;
             color: #cccccc;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
+            line-height: 1.5;
         }
 
         .join-button {
@@ -81,7 +85,7 @@
             border: 2px solid var(--neon-green);
             border-radius: 10px;
             padding: 15px 40px;
-            font-size: 1.5em;
+            font-size: 1.3em;
             font-weight: 600;
             cursor: pointer;
             letter-spacing: 2px;
@@ -92,6 +96,8 @@
                 0 0 15px var(--neon-green);
             animation: pulse 2s infinite alternate;
             margin-top: 20px;
+            width: 100%;
+            max-width: 300px;
         }
 
         .join-button:hover {
@@ -116,40 +122,64 @@
 
         .status-message {
             font-family: 'Rajdhani', sans-serif;
-            font-size: 1.2em;
+            font-size: 1em;
             margin: 15px 0;
-            padding: 10px;
-            border-radius: 5px;
+            padding: 12px;
+            border-radius: 8px;
             display: none;
+            border: 1px solid transparent;
         }
 
         .status-success {
             color: var(--neon-green);
             background-color: rgba(0, 255, 65, 0.1);
-            border: 1px solid var(--neon-green);
+            border-color: var(--neon-green);
         }
 
         .status-error {
             color: #ff3333;
             background-color: rgba(255, 51, 51, 0.1);
-            border: 1px solid #ff3333;
+            border-color: #ff3333;
         }
 
         .timer {
             font-family: 'Orbitron', sans-serif;
             color: var(--neon-green);
-            font-size: 1.2em;
+            font-size: 1em;
             margin: 15px 0;
-            padding: 10px;
+            padding: 12px;
             border: 1px solid var(--neon-green);
-            border-radius: 5px;
+            border-radius: 8px;
             background-color: rgba(0, 255, 65, 0.05);
         }
 
         /* Keyframe Animations */
         @keyframes pulse {
-            0% { box-shadow: inset 0 0 10px var(--neon-green-glow), 0 0 15px var(--neon-green); }
-            100% { box-shadow: inset 0 0 15px var(--neon-green), 0 0 25px var(--neon-green), 0 0 40px var(--neon-green-glow); }
+            0% { 
+                text-shadow: 0 0 5px var(--neon-green), 0 0 10px var(--neon-green), 0 0 20px var(--neon-green-glow);
+                box-shadow: inset 0 0 10px var(--neon-green-glow), 0 0 15px var(--neon-green);
+            }
+            100% { 
+                text-shadow: 0 0 10px var(--neon-green), 0 0 20px var(--neon-green), 0 0 30px var(--neon-green-glow);
+                box-shadow: inset 0 0 15px var(--neon-green), 0 0 25px var(--neon-green), 0 0 40px var(--neon-green-glow);
+            }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--neon-green);
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         @media (max-width: 600px) {
@@ -158,12 +188,16 @@
             }
             
             p {
-                font-size: 1.2em;
+                font-size: 1em;
             }
             
             .join-button {
-                font-size: 1.2em;
-                padding: 12px 30px;
+                font-size: 1.1em;
+                padding: 12px 25px;
+            }
+            
+            .container {
+                padding: 20px;
             }
         }
 
@@ -183,36 +217,42 @@
         
         <div class="status-message" id="statusMessage"></div>
         
-        <button id="joinBtn" class="join-button">Join Now</button>
+        <button id="joinBtn" class="join-button">
+            <span id="btnText">Join Now</span>
+            <span id="btnLoader" style="display:none;" class="loading"></span>
+        </button>
     </div>
 
-    <!-- Include the Telegram Web App script -->
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
-        // --- Hacker Man Background Effect Script ---
+        // --- Hacker Matrix Background Effect Script ---
         const canvas = document.getElementById('matrix-bg');
         const ctx = canvas.getContext('2d');
 
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
 
         // Matrix characters
         const matrix = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789@#$%^&*()*&^%+-/~{[|`]}";
         const matrixArray = matrix.split("");
 
-        const fontSize = 10;
-        const columns = canvas.width / fontSize;
+        const fontSize = 14;
+        let columns = Math.floor(canvas.width / fontSize);
 
         // An array of drops - one for each column
         const drops = [];
         for(let x = 0; x < columns; x++) {
-            drops[x] = 1;
+            drops[x] = Math.floor(Math.random() * canvas.height / fontSize);
         }
 
         // The drawing function
-        function draw() {
-            // Black BG for the canvas with a slight transparency for trail effect
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+        function drawMatrix() {
+            // Semi-transparent black for fade effect
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             ctx.fillStyle = '#00ff41';
@@ -223,25 +263,27 @@
                 // A random character from the matrix array
                 const text = matrixArray[Math.floor(Math.random() * matrixArray.length)];
                 
-                // x = i * fontSize, y = value of drops[i] * fontSize
+                // Draw the character
                 ctx.fillText(text, i * fontSize, drops[i] * fontSize);
 
-                // Reset the drop to the top randomly after it has crossed the screen
+                // Move the drop down
+                drops[i]++;
+                
+                // Randomly reset drop to top
                 if(drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
                     drops[i] = 0;
                 }
-
-                // Incrementing Y coordinate
-                drops[i]++;
             }
         }
 
-        // Call the draw function every 35ms
-        setInterval(draw, 35);
+        // Start the matrix animation
+        const matrixInterval = setInterval(drawMatrix, 35);
 
-        // --- Telegram Web App Logic ---
+        // --- Main Application Logic ---
         document.addEventListener('DOMContentLoaded', async () => {
             const joinBtn = document.getElementById('joinBtn');
+            const btnText = document.getElementById('btnText');
+            const btnLoader = document.getElementById('btnLoader');
             const statusMessage = document.getElementById('statusMessage');
             const countdownElement = document.getElementById('countdown');
             
@@ -258,26 +300,27 @@
             let sessionExpiry = null;
             let countdownInterval = null;
             
-            // Initialize Telegram Web App
-            const tg = window.Telegram.WebApp;
-            tg.ready();
-            tg.expand();
-            tg.enableClosingConfirmation();
-            
-            // First, verify the session
+            // Initialize the session
             try {
-                showStatus('Verifying session...', 'info');
+                showStatus('Initializing verification...', 'info');
                 
+                // Verify the session first
                 const verifyResponse = await fetch(`/api/verify/${token}`);
                 
                 if (!verifyResponse.ok) {
-                    const error = await verifyResponse.json();
-                    showError(error.detail || 'Session verification failed');
-                    joinBtn.disabled = true;
+                    const error = await verifyResponse.json().catch(() => ({ detail: 'Verification failed' }));
                     
-                    if (verifyResponse.status === 404 || verifyResponse.status === 410) {
-                        setTimeout(() => tg.close(), 3000);
+                    if (verifyResponse.status === 404) {
+                        showError('Session not found or has expired.');
+                    } else if (verifyResponse.status === 410) {
+                        showError('Session expired. Please restart verification.');
+                    } else if (verifyResponse.status === 429) {
+                        showError('Too many attempts. Please try again later.');
+                    } else {
+                        showError(error.detail || 'Verification failed');
                     }
+                    
+                    joinBtn.disabled = true;
                     return;
                 }
                 
@@ -287,23 +330,23 @@
                 // Start countdown timer
                 startCountdown(sessionExpiry);
                 
-                showStatus('Session verified! Click "Join Now" to proceed.', 'success');
+                showStatus('Ready for verification!', 'success');
                 
             } catch (error) {
-                console.error('Session verification error:', error);
-                showError('Failed to verify session. Please try again.');
+                console.error('Initialization error:', error);
+                showError('Failed to initialize. Please check your connection.');
                 joinBtn.disabled = true;
                 return;
             }
             
             // Handle join button click
             joinBtn.addEventListener('click', async () => {
-                joinBtn.textContent = 'Processing...';
+                btnText.textContent = 'Processing...';
+                btnLoader.style.display = 'inline-block';
                 joinBtn.disabled = true;
-                showStatus('Processing your request...', 'info');
-
+                
                 try {
-                    // Call the correct API endpoint - POST to complete verification
+                    // Complete verification
                     const response = await fetch(`/api/verify/${token}/complete`, {
                         method: 'POST',
                         headers: {
@@ -311,27 +354,48 @@
                         }
                     });
                     
+                    if (!response.ok) {
+                        const error = await response.json().catch(() => ({ detail: 'Verification failed' }));
+                        showError(error.detail || 'Failed to complete verification');
+                        
+                        // Reset button
+                        btnText.textContent = 'Join Now';
+                        btnLoader.style.display = 'none';
+                        joinBtn.disabled = false;
+                        return;
+                    }
+                    
                     const data = await response.json();
-
-                    if (response.ok && data.group_link) {
-                        showStatus('Success! Redirecting to group...', 'success');
+                    
+                    if (data.success && data.group_link) {
+                        showStatus('Success! Opening Telegram...', 'success');
                         
-                        // Open the Telegram group link
-                        tg.openLink(data.group_link);
+                        // Use Telegram WebApp if available, otherwise regular window.open
+                        if (window.Telegram && window.Telegram.WebApp) {
+                            window.Telegram.WebApp.openLink(data.group_link);
+                        } else {
+                            window.open(data.group_link, '_blank');
+                        }
                         
-                        // Close WebApp after a short delay
+                        // Close after delay
                         setTimeout(() => {
-                            tg.close();
+                            if (window.Telegram && window.Telegram.WebApp) {
+                                window.Telegram.WebApp.close();
+                            }
                         }, 2000);
+                        
                     } else {
-                        showError(data.detail || 'Failed to get group link. Please try again.');
-                        joinBtn.textContent = 'Join Now';
+                        showError('Failed to get group link');
+                        btnText.textContent = 'Join Now';
+                        btnLoader.style.display = 'none';
                         joinBtn.disabled = false;
                     }
+                    
                 } catch (error) {
-                    console.error('Fetch error:', error);
-                    showError('Network error. Please check your connection and try again.');
-                    joinBtn.textContent = 'Join Now';
+                    console.error('Join error:', error);
+                    showError('Network error. Please try again.');
+                    btnText.textContent = 'Join Now';
+                    btnLoader.style.display = 'none';
                     joinBtn.disabled = false;
                 }
             });
@@ -382,12 +446,6 @@
             function hideStatus() {
                 statusMessage.style.display = 'none';
             }
-            
-            // Handle window resize for canvas
-            window.addEventListener('resize', () => {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-            });
         });
     </script>
 </body>

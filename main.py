@@ -1035,14 +1035,14 @@ async def join_page(token: str):
     except Exception as e:
         logger.error(f"Error in /join endpoint: {e}")
         # Simple error page
-        html_content = f"""
+        html_content = """
         <!DOCTYPE html>
         <html>
         <head>
             <title>Error</title>
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
-                body {{
+                body {
                     background: #000;
                     color: #f00;
                     font-family: monospace;
@@ -1052,13 +1052,13 @@ async def join_page(token: str):
                     height: 100vh;
                     margin: 0;
                     text-align: center;
-                }}
-                .container {{
+                }
+                .container {
                     padding: 30px;
                     border: 2px solid #f00;
                     border-radius: 10px;
                     background: rgba(255, 0, 0, 0.1);
-                }}
+                }
             </style>
         </head>
         <body>
@@ -1119,7 +1119,7 @@ async def complete_verification(token: str):
             expires_at = datetime.fromisoformat(session["expires_at"].replace('Z', '+00:00'))
         
         if expires_at < datetime.utcnow():
-            webapp_sessions.delete_one({"token": token}")
+            webapp_sessions.delete_one({"token": token})
             raise HTTPException(status_code=410, detail="Session expired")
     
     # Mark as verified

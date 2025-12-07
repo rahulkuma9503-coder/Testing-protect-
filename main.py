@@ -1,5 +1,3 @@
-[file name]: main.py
-[file content begin]
 import os
 import logging
 import uuid

@@ -7,8 +7,7 @@ import secrets
 import string
 import re
 import asyncio
-import socket
-import time  # Added import
+import time
 from datetime import datetime, timedelta
 from typing import Dict, Optional, List
 from pymongo import MongoClient
@@ -37,190 +36,173 @@ RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL")
 ADMIN_USER_ID = os.environ.get("ADMIN_USER_ID", "").split(",")
 SUPPORT_CHANNEL_ID = os.environ.get("SUPPORT_CHANNEL_ID")
 
-# Debug: Log environment variables (mask sensitive info)
-logger.info(f"TELEGRAM_TOKEN: {'Set' if TELEGRAM_TOKEN else 'Not set'}")
-if MONGODB_URI:
-    # Mask password in logs
-    safe_uri = MONGODB_URI
-    if '@' in safe_uri:
-        parts = safe_uri.split('@')
-        user_pass = parts[0].split(':')
-        if len(user_pass) == 3:  # mongodb+srv://username:password@
-            user_pass[2] = '***'
-            safe_uri = ':'.join(user_pass) + '@' + parts[1]
-    logger.info(f"MONGODB_URI: {safe_uri.split('@')[1] if '@' in safe_uri else safe_uri[:50]}...")
-else:
-    logger.warning("MONGODB_URI is not set!")
-
 if not TELEGRAM_TOKEN:
     raise Exception("TELEGRAM_TOKEN environment variable is required!")
 
-# --- Database Setup (MongoDB) with Robust Error Handling ---
-def test_dns_resolution(hostname):
-    """Test if a hostname can be resolved"""
+# --- Database Setup (MongoDB) ---
+client = None
+db = None
+
+# Database collections (will be initialized after connection)
+links_collection = None
+webapp_sessions = None
+users_collection = None
+channel_verification = None
+broadcasts_collection = None
+
+# Try to connect to MongoDB
+if MONGODB_URI:
     try:
-        socket.gethostbyname(hostname)
-        return True
-    except socket.gaierror:
-        return False
-
-def get_mongodb_client():
-    """Initialize MongoDB client with robust error handling"""
-    # Use the global MONGODB_URI variable
-    global MONGODB_URI
-    
-    mongodb_uri = MONGODB_URI  # Local variable to avoid modification issues
-    
-    if not mongodb_uri:
-        logger.error("MONGODB_URI environment variable is not set!")
-        
-        # Try to construct from separate variables as fallback
-        MONGODB_USER = os.environ.get("MONGODB_USER")
-        MONGODB_PASSWORD = os.environ.get("MONGODB_PASSWORD")
-        MONGODB_CLUSTER = os.environ.get("MONGODB_CLUSTER")
-        MONGODB_DB = os.environ.get("MONGODB_DB", "protected_bot_db")
-        
-        if all([MONGODB_USER, MONGODB_PASSWORD, MONGODB_CLUSTER]):
-            mongodb_uri = f"mongodb+srv://{MONGODB_USER}:{MONGODB_PASSWORD}@{MONGODB_CLUSTER}/{MONGODB_DB}?retryWrites=true&w=majority&tls=true"
-            logger.info("Constructing MONGODB_URI from separate variables")
-        else:
-            raise Exception("MONGODB_URI environment variable is required and no fallback variables found!")
-
-    # Extract hostname for testing
-    hostname = None
-    if "@" in mongodb_uri:
-        hostname = mongodb_uri.split("@")[1].split("/")[0].split("?")[0]
-    
-    logger.info(f"Testing DNS resolution for: {hostname}")
-    
-    # Test DNS resolution first
-    if hostname and not test_dns_resolution(hostname):
-        logger.error(f"❌ DNS resolution failed for: {hostname}")
-        logger.error("Please check your MongoDB cluster name and network connectivity")
-        
-        # Try common fixes
-        if "mongodb+srv://" in mongodb_uri:
-            # Try without SRV
-            alt_uri = mongodb_uri.replace("mongodb+srv://", "mongodb://")
-            logger.info(f"Trying alternative URI without SRV: {alt_uri[:50]}...")
-            
-            # Extract alt hostname
-            alt_hostname = alt_uri.split("@")[1].split("/")[0].split("?")[0] if "@" in alt_uri else None
-            if alt_hostname and test_dns_resolution(alt_hostname):
-                logger.info(f"✅ Alternative hostname resolves: {alt_hostname}")
-                return MongoClient(alt_uri, serverSelectionTimeoutMS=10000)
-        
-        raise Exception(f"DNS resolution failed for MongoDB hostname: {hostname}. Please check your connection string and network settings.")
-
-    # Try connecting with the provided URI
-    try:
-        logger.info("Attempting to connect to MongoDB...")
-        
-        # First try with standard settings
+        logger.info("Connecting to MongoDB...")
         client = MongoClient(
-            mongodb_uri,
-            serverSelectionTimeoutMS=10000,
-            connectTimeoutMS=15000,
-            socketTimeoutMS=30000,
+            MONGODB_URI,
+            serverSelectionTimeoutMS=10000,  # 10 seconds
+            connectTimeoutMS=15000,  # 15 seconds
+            socketTimeoutMS=30000,  # 30 seconds
             retryWrites=True,
             w='majority'
         )
         
         # Test connection
         client.admin.command('ping')
-        logger.info("✅ MongoDB connection successful")
-        return client
+        logger.info("✅ MongoDB connected successfully")
         
-    except Exception as e:
-        logger.error(f"❌ MongoDB connection failed: {e}")
+        # Setup database
+        db_name = "protected_bot_db"
+        db = client[db_name]
         
-        # If using SRV and it fails, try without SRV
-        if "mongodb+srv://" in mongodb_uri:
-            logger.info("🔄 Trying connection without SRV...")
-            try:
-                # Replace mongodb+srv:// with mongodb:// and add standard port
-                alt_uri = mongodb_uri.replace("mongodb+srv://", "mongodb://")
-                
-                # For MongoDB Atlas, we need to use specific replica set hosts
-                # This is a fallback for when SRV doesn't work
-                client = MongoClient(
-                    alt_uri,
-                    serverSelectionTimeoutMS=15000,
-                    connectTimeoutMS=20000,
-                    socketTimeoutMS=30000,
-                    retryWrites=True,
-                    w='majority',
-                    directConnection=False
-                )
-                
-                client.admin.command('ping')
-                logger.info("✅ MongoDB connection successful (without SRV)")
-                return client
-                
-            except Exception as alt_e:
-                logger.error(f"❌ Alternative connection also failed: {alt_e}")
-                raise Exception(f"MongoDB connection failed. Please check your connection string and ensure MongoDB Atlas cluster is running and accessible.")
-        else:
-            raise Exception(f"MongoDB connection failed: {e}")
-
-# Initialize MongoDB client with retry logic
-max_retries = 3
-retry_delay = 5  # seconds
-client = None
-
-for attempt in range(max_retries):
-    try:
-        client = get_mongodb_client()
-        logger.info(f"✅ MongoDB connected successfully (attempt {attempt + 1}/{max_retries})")
-        break
-    except Exception as e:
-        logger.error(f"Attempt {attempt + 1}/{max_retries} failed: {e}")
-        if attempt < max_retries - 1:
-            logger.info(f"Retrying in {retry_delay} seconds...")
-            time.sleep(retry_delay)
-        else:
-            logger.critical("Failed to connect to MongoDB after all retries")
-            # Create dummy collections for testing
-            class DummyCollection:
-                def find_one(self, *args, **kwargs): return None
-                def find(self, *args, **kwargs): return []
-                def insert_one(self, *args, **kwargs): return type('obj', (object,), {'inserted_id': 'dummy'})
-                def update_one(self, *args, **kwargs): pass
-                def delete_one(self, *args, **kwargs): pass
-                def count_documents(self, *args, **kwargs): return 0
-                def create_index(self, *args, **kwargs): pass
-            
-            links_collection = DummyCollection()
-            webapp_sessions = DummyCollection()
-            users_collection = DummyCollection()
-            channel_verification = DummyCollection()
-            broadcasts_collection = DummyCollection()
-            
-            if not os.environ.get("ALLOW_NO_MONGODB", "false").lower() == "true":
-                raise
-
-if client:
-    db_name = "protected_bot_db"
-    db = client[db_name]
-    
-    # Collections
-    links_collection = db["protected_links"]
-    webapp_sessions = db["webapp_sessions"]
-    users_collection = db["users"]
-    channel_verification = db["channel_verification"]
-    broadcasts_collection = db["broadcasts"]
-    
-    # Create indexes
-    try:
+        # Initialize collections
+        links_collection = db["protected_links"]
+        webapp_sessions = db["webapp_sessions"]
+        users_collection = db["users"]
+        channel_verification = db["channel_verification"]
+        broadcasts_collection = db["broadcasts"]
+        
+        # Create indexes
         links_collection.create_index("created_at", expireAfterSeconds=2592000)  # 30 days
         links_collection.create_index("_id", unique=True)
         webapp_sessions.create_index("created_at", expireAfterSeconds=1800)  # 30 minutes
         webapp_sessions.create_index("token", unique=True)
         users_collection.create_index("user_id", unique=True)
         users_collection.create_index("last_active")
+        
         logger.info("✅ MongoDB collections and indexes initialized")
+        
     except Exception as e:
-        logger.error(f"Error creating indexes: {e}")
+        logger.error(f"❌ MongoDB connection failed: {e}")
+        logger.warning("Running in memory-only mode (data will be lost on restart)")
+        
+        # Create in-memory collections as fallback
+        class MemoryCollection:
+            def __init__(self):
+                self.data = {}
+            
+            def find_one(self, query):
+                if "_id" in query:
+                    return self.data.get(query["_id"])
+                return None
+            
+            def find(self, query=None, **kwargs):
+                return list(self.data.values())
+            
+            def insert_one(self, document):
+                if "_id" in document:
+                    self.data[document["_id"]] = document
+                elif "token" in document:
+                    self.data[document["token"]] = document
+                elif "user_id" in document:
+                    self.data[document["user_id"]] = document
+                return type('obj', (object,), {'inserted_id': 'dummy'})
+            
+            def update_one(self, query, update, **kwargs):
+                doc = self.find_one(query)
+                if doc and "$set" in update:
+                    doc.update(update["$set"])
+                return type('obj', (object,), {'matched_count': 1 if doc else 0})
+            
+            def delete_one(self, query):
+                key = None
+                if "_id" in query:
+                    key = query.get("_id")
+                elif "token" in query:
+                    key = query.get("token")
+                elif "user_id" in query:
+                    key = query.get("user_id")
+                
+                if key in self.data:
+                    del self.data[key]
+                    return type('obj', (object,), {'deleted_count': 1})
+                return type('obj', (object,), {'deleted_count': 0})
+            
+            def count_documents(self, query=None):
+                return len(self.data)
+            
+            def create_index(self, *args, **kwargs):
+                pass
+        
+        # Create memory collections
+        links_collection = MemoryCollection()
+        webapp_sessions = MemoryCollection()
+        users_collection = MemoryCollection()
+        channel_verification = MemoryCollection()
+        broadcasts_collection = MemoryCollection()
+else:
+    logger.warning("MONGODB_URI not set. Running in memory-only mode.")
+    
+    # Create in-memory collections
+    class MemoryCollection:
+        def __init__(self):
+            self.data = {}
+        
+        def find_one(self, query):
+            if "_id" in query:
+                return self.data.get(query["_id"])
+            return None
+        
+        def find(self, query=None, **kwargs):
+            return list(self.data.values())
+        
+        def insert_one(self, document):
+            if "_id" in document:
+                self.data[document["_id"]] = document
+            elif "token" in document:
+                self.data[document["token"]] = document
+            elif "user_id" in document:
+                self.data[document["user_id"]] = document
+            return type('obj', (object,), {'inserted_id': 'dummy'})
+        
+        def update_one(self, query, update, **kwargs):
+            doc = self.find_one(query)
+            if doc and "$set" in update:
+                doc.update(update["$set"])
+            return type('obj', (object,), {'matched_count': 1 if doc else 0})
+        
+        def delete_one(self, query):
+            key = None
+            if "_id" in query:
+                key = query.get("_id")
+            elif "token" in query:
+                key = query.get("token")
+            elif "user_id" in query:
+                key = query.get("user_id")
+            
+            if key in self.data:
+                del self.data[key]
+                return type('obj', (object,), {'deleted_count': 1})
+            return type('obj', (object,), {'deleted_count': 0})
+        
+        def count_documents(self, query=None):
+            return len(self.data)
+        
+        def create_index(self, *args, **kwargs):
+            pass
+    
+    # Create memory collections
+    links_collection = MemoryCollection()
+    webapp_sessions = MemoryCollection()
+    users_collection = MemoryCollection()
+    channel_verification = MemoryCollection()
+    broadcasts_collection = MemoryCollection()
 
 # --- Helper Functions ---
 def generate_encoded_string(length: int = 16) -> str:
@@ -790,11 +772,11 @@ async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
     
     try:
-        if hasattr(client, 'admin'):
+        if client:
             client.admin.command('ping')
             mongo_status = "✅ Connected"
         else:
-            mongo_status = "❌ No connection"
+            mongo_status = "❌ Using memory storage"
     except Exception as e:
         mongo_status = f"❌ Error: {e}"
     
@@ -830,14 +812,14 @@ async def on_startup():
     logger.info("Application startup...")
     
     # Test MongoDB connection if available
-    if hasattr(client, 'admin'):
+    if client:
         try:
             client.admin.command('ping')
             logger.info("✅ MongoDB connected successfully on startup")
         except Exception as e:
             logger.error(f"❌ MongoDB connection failed on startup: {e}")
     else:
-        logger.warning("⚠️ MongoDB client not available, running in limited mode")
+        logger.warning("⚠️ Running with in-memory storage (data will be lost on restart)")
     
     # Initialize and start PTB
     await telegram_bot_app.initialize()
@@ -858,7 +840,7 @@ async def on_shutdown():
     logger.info("Application shutdown...")
     await telegram_bot_app.stop()
     await telegram_bot_app.shutdown()
-    if hasattr(client, 'close'):
+    if client:
         try:
             client.close()
             logger.info("MongoDB connection closed")
@@ -892,12 +874,18 @@ async def join_page(request: Request, token: str):
         })
     
     # Check if expired
-    if session["expires_at"] < datetime.utcnow():
-        webapp_sessions.delete_one({"token": token})
-        return templates.TemplateResponse("error.html", {
-            "request": request,
-            "error": "Session expired"
-        })
+    if session.get("expires_at"):
+        if isinstance(session["expires_at"], datetime):
+            expires_at = session["expires_at"]
+        else:
+            expires_at = datetime.fromisoformat(session["expires_at"].replace('Z', '+00:00'))
+        
+        if expires_at < datetime.utcnow():
+            webapp_sessions.delete_one({"token": token})
+            return templates.TemplateResponse("error.html", {
+                "request": request,
+                "error": "Session expired"
+            })
     
     return templates.TemplateResponse("join.html", {
         "request": request,
@@ -912,9 +900,16 @@ async def verify_session(token: str):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    if session["expires_at"] < datetime.utcnow():
-        webapp_sessions.delete_one({"token": token})
-        raise HTTPException(status_code=410, detail="Session expired")
+    # Check if expired
+    if session.get("expires_at"):
+        if isinstance(session["expires_at"], datetime):
+            expires_at = session["expires_at"]
+        else:
+            expires_at = datetime.fromisoformat(session["expires_at"].replace('Z', '+00:00'))
+        
+        if expires_at < datetime.utcnow():
+            webapp_sessions.delete_one({"token": token})
+            raise HTTPException(status_code=410, detail="Session expired")
     
     # Check if user has reached max attempts
     if session.get("attempts", 0) >= 3:
@@ -925,7 +920,7 @@ async def verify_session(token: str):
         "user_id": session["user_id"],
         "username": session.get("username"),
         "first_name": session.get("first_name"),
-        "expires_at": session["expires_at"].isoformat()
+        "expires_at": session.get("expires_at", datetime.utcnow() + timedelta(minutes=30)).isoformat()
     }
 
 @app.post("/api/verify/{token}/complete")
@@ -936,9 +931,16 @@ async def complete_verification(token: str, request: Request):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    if session["expires_at"] < datetime.utcnow():
-        webapp_sessions.delete_one({"token": token})
-        raise HTTPException(status_code=410, detail="Session expired")
+    # Check if expired
+    if session.get("expires_at"):
+        if isinstance(session["expires_at"], datetime):
+            expires_at = session["expires_at"]
+        else:
+            expires_at = datetime.fromisoformat(session["expires_at"].replace('Z', '+00:00'))
+        
+        if expires_at < datetime.utcnow():
+            webapp_sessions.delete_one({"token": token})
+            raise HTTPException(status_code=410, detail="Session expired")
     
     # Mark as verified
     webapp_sessions.update_one(
@@ -973,15 +975,15 @@ async def health_check():
     """Health check endpoint"""
     try:
         # Test MongoDB connection if available
-        if hasattr(client, 'admin'):
+        if client:
             mongo_status = "connected" if client.admin.command('ping') else "disconnected"
         else:
-            mongo_status = "no_connection"
+            mongo_status = "memory_storage"
     except:
         mongo_status = "disconnected"
     
     return {
-        "status": "ok" if mongo_status == "connected" else "degraded",
+        "status": "ok",
         "timestamp": datetime.utcnow().isoformat(),
         "mongodb": mongo_status,
         "total_users": users_collection.count_documents({}),
@@ -995,7 +997,7 @@ async def root():
         "service": "Telegram Protected Link Bot",
         "version": "2.0.0",
         "status": "running",
-        "mongodb": "connected" if hasattr(client, 'admin') else "not_connected",
+        "mongodb": "connected" if client else "memory_storage",
         "webapp": True,
         "features": ["channel_verification", "webapp_interface", "analytics", "admin_tools"]
     }

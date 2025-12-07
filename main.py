@@ -5,15 +5,15 @@ import base64
 import json
 import secrets
 import string
+import re
 import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, Optional, List
 from pymongo import MongoClient
-from fastapi import FastAPI, Request, Response, HTTPException, Query, Depends
+from fastapi import FastAPI, Request, Response, HTTPException, Query
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-from fastapi.security import HTTPBearer
+from fastapi.responses import HTMLResponse
 
 # --- Telegram Imports ---
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
@@ -34,7 +34,6 @@ MONGODB_URI = os.environ.get("MONGODB_URI")
 RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL")
 ADMIN_USER_ID = os.environ.get("ADMIN_USER_ID", "").split(",")
 SUPPORT_CHANNEL_ID = os.environ.get("SUPPORT_CHANNEL_ID")
-WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", secrets.token_hex(32))
 
 if not TELEGRAM_TOKEN or not MONGODB_URI:
     raise Exception("TELEGRAM_TOKEN and MONGODB_URI environment variables are required!")
@@ -50,26 +49,28 @@ webapp_sessions = db["webapp_sessions"]
 users_collection = db["users"]
 channel_verification = db["channel_verification"]
 broadcasts_collection = db["broadcasts"]
-captcha_attempts = db["captcha_attempts"]
-analytics = db["analytics"]
 
 # Create indexes
 links_collection.create_index("created_at", expireAfterSeconds=2592000)  # 30 days
-links_collection.create_index("encoded", unique=True)
+links_collection.create_index("_id", unique=True)
 webapp_sessions.create_index("created_at", expireAfterSeconds=1800)  # 30 minutes
 webapp_sessions.create_index("token", unique=True)
 users_collection.create_index("user_id", unique=True)
 users_collection.create_index("last_active")
-broadcasts_collection.create_index("broadcast_id", unique=True)
+
+def init_db():
+    """Verifies the MongoDB connection."""
+    try:
+        client.admin.command('ismaster')
+        logger.info("MongoDB connection successful.")
+    except Exception as e:
+        logger.error(f"MongoDB connection failed: {e}")
+        raise
 
 # --- Helper Functions ---
 def generate_encoded_string(length: int = 16) -> str:
     alphabet = string.ascii_letters + string.digits
     return ''.join(secrets.choice(alphabet) for _ in range(length))
-
-def generate_captcha_code() -> str:
-    """Generate unique CAPTCHA code"""
-    return ''.join(secrets.choice(string.digits) for _ in range(5))
 
 def escape_html(text: str) -> str:
     """Escape text for HTML parse mode"""
@@ -266,12 +267,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     
     # Handle protected link access
-    if args[0].startswith("verify_"):
-        encoded_id = args[0][7:]
-        await handle_protected_link(update, context, user, encoded_id)
-    else:
-        encoded_id = args[0]
-        await handle_protected_link(update, context, user, encoded_id)
+    encoded_id = args[0]
+    await handle_protected_link(update, context, user, encoded_id)
 
 async def handle_protected_link(update: Update, context: ContextTypes.DEFAULT_TYPE, user, encoded_id: str):
     """Handle protected link access"""
@@ -515,9 +512,23 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return
     
     if update.message.reply_to_message:
-        await broadcast_replied(update, context)
+        # Handle media broadcast
+        pass
     elif context.args:
-        await broadcast_text(update, context)
+        # Handle text broadcast
+        all_users = list(users_collection.find({}, {"user_id": 1}))
+        
+        for user_data in all_users:
+            try:
+                await context.bot.send_message(
+                    chat_id=user_data["user_id"],
+                    text=" ".join(context.args),
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                logger.error(f"Failed to send to user {user_data['user_id']}: {e}")
+        
+        await update.message.reply_text(f"Broadcast sent to {len(all_users)} users.")
     else:
         await update.message.reply_text(
             "Usage:\n"
@@ -615,6 +626,30 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     
     await update.message.reply_text(help_text, parse_mode="HTML")
 
+async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Health check command"""
+    user = update.effective_user
+    
+    if str(user.id) not in ADMIN_USER_ID:
+        await update.message.reply_text("❌ Admin only command.")
+        return
+    
+    try:
+        client.admin.command('ping')
+        mongo_status = "✅ Connected"
+    except Exception as e:
+        mongo_status = f"❌ Error: {e}"
+    
+    status_text = (
+        "🏥 <b>BOT HEALTH STATUS</b>\n\n"
+        f"<b>Database:</b> {mongo_status}\n"
+        f"<b>Total Users:</b> {users_collection.count_documents({})}\n"
+        f"<b>Total Links:</b> {links_collection.count_documents({})}\n"
+        f"<b>Server Time:</b> {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
+    )
+    
+    await update.message.reply_text(status_text, parse_mode="HTML")
+
 # Register handlers
 telegram_bot_app.add_handler(CommandHandler("start", start))
 telegram_bot_app.add_handler(CommandHandler("protect", protect_command))
@@ -622,12 +657,13 @@ telegram_bot_app.add_handler(CommandHandler("broadcast", broadcast_command))
 telegram_bot_app.add_handler(CommandHandler("stats", stats_command))
 telegram_bot_app.add_handler(CommandHandler("users", users_command))
 telegram_bot_app.add_handler(CommandHandler("help", help_command))
+telegram_bot_app.add_handler(CommandHandler("health", health_command))
 telegram_bot_app.add_handler(CallbackQueryHandler(callback_handler))
 
 # --- FastAPI Web Server Setup ---
 app = FastAPI(title="Telegram Protected Link Bot")
 
-# Initialize templates with your HTML
+# Initialize templates
 templates = Jinja2Templates(directory="templates")
 
 @app.on_event("startup")
@@ -759,15 +795,6 @@ async def complete_verification(token: str):
         {"$inc": {"total_verifications": 1}}
     )
     
-    # Record analytics
-    analytics.insert_one({
-        "user_id": session["user_id"],
-        "link_id": session["link_id"],
-        "action": "verification_complete",
-        "timestamp": datetime.utcnow(),
-        "ip": request.client.host if request else None
-    })
-    
     return {
         "success": True,
         "group_link": session["group_link"],
@@ -799,8 +826,5 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    import re  # Import re for link validation
-    
     port = int(os.environ.get("PORT", 8443))
     uvicorn.run(app, host="0.0.0.0", port=port)
-[file content end]

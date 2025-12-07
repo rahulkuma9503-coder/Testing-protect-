@@ -448,7 +448,7 @@ async def handle_protected_link(update: Update, context: ContextTypes.DEFAULT_TY
     
     webapp_sessions.insert_one(session_data)
     
-    # Create Web App URL with your hacker theme
+    # Create Web App URL
     web_app_url = f"{RENDER_EXTERNAL_URL}/join?token={webapp_token}"
     
     # Create keyboard with Web App button
@@ -464,8 +464,7 @@ async def handle_protected_link(update: Update, context: ContextTypes.DEFAULT_TY
         "🔒 <b>PROTECTED LINK ACCESS</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
         "<b>Click the button below to open the verification panel:</b>\n\n"
-        "⚠️ <i>You have 30 minutes to complete verification</i>\n"
-        "🔐 <i>Secure Web App verification required</i>",
+        "⚠️ <i>You have 30 minutes to complete verification</i>",
         reply_markup=reply_markup,
         parse_mode="HTML"
     )
@@ -803,9 +802,6 @@ telegram_bot_app.add_handler(CallbackQueryHandler(callback_handler))
 # --- FastAPI Web Server Setup ---
 app = FastAPI(title="Telegram Protected Link Bot")
 
-# Initialize templates
-templates = Jinja2Templates(directory="templates")
-
 @app.on_event("startup")
 async def on_startup():
     """Initialize bot"""
@@ -864,78 +860,49 @@ async def telegram_webhook(request: Request, token: str):
 
 @app.get("/join")
 async def join_page(token: str):
-    """Simple join page that auto-redirects to group"""
+    """Direct join page - immediately redirects to Telegram group"""
     try:
         # Check session
         session = webapp_sessions.find_one({"token": token})
         
         if not session:
-            return HTMLResponse(content="""
+            # Simple error page
+            html_content = """
             <!DOCTYPE html>
             <html>
             <head>
-                <title>Session Error</title>
+                <title>Error</title>
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
                     body {
-                        background: #000000;
-                        color: #ffffff;
+                        background: #000;
+                        color: #f00;
                         font-family: monospace;
                         display: flex;
                         justify-content: center;
                         align-items: center;
                         height: 100vh;
                         margin: 0;
-                        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+                        text-align: center;
                     }
                     .container {
-                        text-align: center;
-                        padding: 40px;
-                        border: 1px solid #ff3333;
-                        border-radius: 15px;
-                        background: rgba(20, 20, 20, 0.9);
-                        backdrop-filter: blur(10px);
-                        max-width: 500px;
-                        width: 90%;
-                    }
-                    h1 { 
-                        color: #ff3333;
-                        font-size: 28px;
-                        margin-bottom: 20px;
-                    }
-                    p {
-                        color: #cccccc;
-                        font-size: 16px;
-                        line-height: 1.5;
-                        margin-bottom: 30px;
-                    }
-                    button {
-                        background: linear-gradient(90deg, #ff3333, #ff6666);
-                        color: white;
-                        border: none;
-                        padding: 12px 30px;
-                        border-radius: 8px;
-                        cursor: pointer;
-                        font-size: 16px;
-                        font-weight: bold;
-                        transition: all 0.3s ease;
-                    }
-                    button:hover {
-                        transform: translateY(-2px);
-                        box-shadow: 0 10px 25px rgba(255, 51, 51, 0.4);
+                        padding: 30px;
+                        border: 2px solid #f00;
+                        border-radius: 10px;
+                        background: rgba(255, 0, 0, 0.1);
                     }
                 </style>
             </head>
             <body>
                 <div class="container">
-                    <h1>❌ SESSION ERROR</h1>
-                    <p>Invalid or expired verification session.</p>
-                    <p>Please restart the verification process from Telegram.</p>
-                    <button onclick="window.close()">CLOSE WINDOW</button>
+                    <h1>❌ ERROR</h1>
+                    <p>Invalid or expired session.</p>
+                    <p>Please restart from Telegram.</p>
                 </div>
             </body>
             </html>
-            """, status_code=404)
+            """
+            return HTMLResponse(content=html_content, status_code=404)
         
         # Check if expired
         if session.get("expires_at"):
@@ -946,259 +913,129 @@ async def join_page(token: str):
             
             if expires_at < datetime.utcnow():
                 webapp_sessions.delete_one({"token": token})
-                return HTMLResponse(content="""
+                # Expired session
+                html_content = """
                 <!DOCTYPE html>
                 <html>
                 <head>
-                    <title>Session Expired</title>
+                    <title>Expired</title>
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <style>
                         body {
-                            background: #000000;
-                            color: #ffffff;
+                            background: #000;
+                            color: #ff9900;
                             font-family: monospace;
                             display: flex;
                             justify-content: center;
                             align-items: center;
                             height: 100vh;
                             margin: 0;
-                            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+                            text-align: center;
                         }
                         .container {
-                            text-align: center;
-                            padding: 40px;
-                            border: 1px solid #ffb800;
-                            border-radius: 15px;
-                            background: rgba(20, 20, 20, 0.9);
-                            backdrop-filter: blur(10px);
-                            max-width: 500px;
-                            width: 90%;
-                        }
-                        h1 { 
-                            color: #ffb800;
-                            font-size: 28px;
-                            margin-bottom: 20px;
-                        }
-                        p {
-                            color: #cccccc;
-                            font-size: 16px;
-                            line-height: 1.5;
-                            margin-bottom: 30px;
-                        }
-                        button {
-                            background: linear-gradient(90deg, #ffb800, #ffcc00);
-                            color: black;
-                            border: none;
-                            padding: 12px 30px;
-                            border-radius: 8px;
-                            cursor: pointer;
-                            font-size: 16px;
-                            font-weight: bold;
-                            transition: all 0.3s ease;
-                        }
-                        button:hover {
-                            transform: translateY(-2px);
-                            box-shadow: 0 10px 25px rgba(255, 184, 0, 0.4);
+                            padding: 30px;
+                            border: 2px solid #ff9900;
+                            border-radius: 10px;
+                            background: rgba(255, 153, 0, 0.1);
                         }
                     </style>
                 </head>
                 <body>
                     <div class="container">
-                        <h1>⏰ SESSION EXPIRED</h1>
-                        <p>This verification session has expired (30-minute limit).</p>
-                        <p>Please restart the verification process from Telegram.</p>
-                        <button onclick="window.close()">CLOSE WINDOW</button>
+                        <h1>⏰ EXPIRED</h1>
+                        <p>Session has expired (30-minute limit).</p>
+                        <p>Please restart from Telegram.</p>
                     </div>
                 </body>
                 </html>
-                """, status_code=410)
+                """
+                return HTMLResponse(content=html_content, status_code=410)
         
-        # Session is valid, show a simple loading page that will auto-redirect
-        return HTMLResponse(content=f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Redirecting to Group...</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body {{
-            background: #000000;
-            color: #ffffff;
-            font-family: monospace;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-        }}
-        .container {{
-            text-align: center;
-            padding: 40px;
-            border: 1px solid #00ff41;
-            border-radius: 15px;
-            background: rgba(20, 20, 20, 0.9);
-            backdrop-filter: blur(10px);
-            max-width: 500px;
-            width: 90%;
-        }}
-        h1 {{ 
-            color: #00ff41;
-            font-size: 32px;
-            margin-bottom: 20px;
-            text-shadow: 0 0 10px rgba(0, 255, 65, 0.7);
-        }}
-        .message {{
-            color: #cccccc;
-            font-size: 18px;
-            line-height: 1.5;
-            margin-bottom: 30px;
-        }}
-        .loading {{
-            display: inline-block;
-            width: 40px;
-            height: 40px;
-            border: 4px solid #00ff41;
-            border-radius: 50%;
-            border-top-color: transparent;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }}
-        @keyframes spin {{
-            0% {{ transform: rotate(0deg); }}
-            100% {{ transform: rotate(360deg); }}
-        }}
-        .countdown {{
-            color: #00ff41;
-            font-family: monospace;
-            font-size: 24px;
-            margin: 20px 0;
-            font-weight: bold;
-        }}
-        .error {{
-            color: #ff3333;
-            display: none;
-            margin-top: 20px;
-            padding: 10px;
-            border: 1px solid #ff3333;
-            border-radius: 5px;
-            background: rgba(255, 51, 51, 0.1);
-        }}
-        button {{
-            background: linear-gradient(90deg, #00ff41, #00cc33);
-            color: #000000;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            margin-top: 20px;
-            display: none;
-        }}
-        button:hover {{
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(0, 255, 65, 0.4);
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>TEAM SECRET</h1>
-        <div class="message">Redirecting to Telegram group...</div>
-        <div class="loading"></div>
-        <div class="countdown" id="countdown">3</div>
-        <div class="error" id="error"></div>
-        <button onclick="manualRedirect()" id="manualBtn">CLICK TO JOIN</button>
-    </div>
-
-    <script>
-        let count = 3;
-        const countdownElement = document.getElementById('countdown');
-        const errorElement = document.getElementById('error');
-        const manualBtn = document.getElementById('manualBtn');
-        let groupLink = null;
+        # Mark as verified
+        webapp_sessions.update_one(
+            {"token": token},
+            {"$set": {"verified": True, "verified_at": datetime.utcnow()}}
+        )
         
-        async function completeVerification() {{
-            try {{
-                // Complete verification and get group link
-                const response = await fetch('/api/verify/{token}/complete', {{
-                    method: 'POST',
-                    headers: {{
-                        'Content-Type': 'application/json',
-                    }}
-                }});
-                
-                if (response.ok) {{
-                    const data = await response.json();
-                    groupLink = data.group_link;
-                    
-                    // Start countdown
-                    const countdown = setInterval(() => {{
-                        count--;
-                        countdownElement.textContent = count;
-                        
-                        if (count <= 0) {{
-                            clearInterval(countdown);
-                            redirectToGroup();
-                        }}
-                    }}, 1000);
-                    
-                }} else {{
-                    const error = await response.json();
-                    throw new Error(error.detail || 'Verification failed');
+        # Update link statistics
+        links_collection.update_one(
+            {"_id": session["link_id"]},
+            {
+                "$inc": {"access_count": 1},
+                "$set": {"last_accessed": datetime.utcnow()},
+                "$addToSet": {"unique_users": session["user_id"]}
+            }
+        )
+        
+        # Update user stats
+        users_collection.update_one(
+            {"user_id": session["user_id"]},
+            {"$inc": {"total_verifications": 1}}
+        )
+        
+        # Create HTML that redirects immediately
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Redirecting to Telegram...</title>
+            <meta http-equiv="refresh" content="0;url={session['group_link']}">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {{
+                    background: #000;
+                    color: #0f0;
+                    font-family: monospace;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    margin: 0;
+                    text-align: center;
                 }}
+                .container {{
+                    padding: 30px;
+                }}
+                h1 {{
+                    color: #0f0;
+                    text-shadow: 0 0 10px #0f0;
+                }}
+                p {{
+                    margin: 20px 0;
+                }}
+                a {{
+                    color: #0f0;
+                    text-decoration: underline;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>TEAM SECRET</h1>
+                <p>Redirecting to Telegram group...</p>
+                <p>If not redirected, <a href="{session['group_link']}">click here</a></p>
+            </div>
+            <script>
+                // Immediate redirect
+                window.location.href = "{session['group_link']}";
                 
-            }} catch (error) {{
-                console.error('Error:', error);
-                errorElement.textContent = 'Error: ' + error.message;
-                errorElement.style.display = 'block';
-                countdownElement.style.display = 'none';
-                manualBtn.style.display = 'block';
-            }}
-        }}
-        
-        function redirectToGroup() {{
-            if (groupLink) {{
-                // Try to open in Telegram WebApp first
-                if (window.Telegram && window.Telegram.WebApp) {{
-                    window.Telegram.WebApp.openLink(groupLink);
-                    setTimeout(() => {{
+                // Try to close WebApp if in Telegram
+                setTimeout(function() {{
+                    if (window.Telegram && window.Telegram.WebApp) {{
                         window.Telegram.WebApp.close();
-                    }}, 2000);
-                }} else {{
-                    // Fallback to regular window.open
-                    window.open(groupLink, '_blank');
-                    setTimeout(() => {{
-                        window.close();
-                    }}, 2000);
-                }}
-            }}
-        }}
+                    }}
+                }}, 1000);
+            </script>
+        </body>
+        </html>
+        """
         
-        function manualRedirect() {{
-            if (groupLink) {{
-                window.open(groupLink, '_blank');
-            }}
-        }}
-        
-        // Initialize Telegram WebApp if available
-        if (window.Telegram && window.Telegram.WebApp) {{
-            window.Telegram.WebApp.ready();
-            window.Telegram.WebApp.expand();
-        }}
-        
-        // Start the process
-        completeVerification();
-    </script>
-</body>
-</html>
-        """)
+        return HTMLResponse(content=html_content)
         
     except Exception as e:
         logger.error(f"Error in /join endpoint: {e}")
-        return HTMLResponse(content=f"""
+        # Simple error page
+        html_content = f"""
         <!DOCTYPE html>
         <html>
         <head>
@@ -1206,63 +1043,34 @@ async def join_page(token: str):
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
                 body {{
-                    background: #000000;
-                    color: #ffffff;
+                    background: #000;
+                    color: #f00;
                     font-family: monospace;
                     display: flex;
                     justify-content: center;
                     align-items: center;
                     height: 100vh;
                     margin: 0;
-                    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+                    text-align: center;
                 }}
                 .container {{
-                    text-align: center;
-                    padding: 40px;
-                    border: 1px solid #ff3333;
-                    border-radius: 15px;
-                    background: rgba(20, 20, 20, 0.9);
-                    backdrop-filter: blur(10px);
-                    max-width: 500px;
-                    width: 90%;
-                }}
-                h1 {{ 
-                    color: #ff3333;
-                    font-size: 28px;
-                    margin-bottom: 20px;
-                }}
-                p {{
-                    color: #cccccc;
-                    font-size: 16px;
-                    line-height: 1.5;
-                    margin-bottom: 30px;
-                }}
-                button {{
-                    background: linear-gradient(90deg, #ff3333, #ff6666);
-                    color: white;
-                    border: none;
-                    padding: 12px 30px;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    font-size: 16px;
-                    font-weight: bold;
-                    transition: all 0.3s ease;
-                }}
-                button:hover {{
-                    transform: translateY(-2px);
-                    box-shadow: 0 10px 25px rgba(255, 51, 51, 0.4);
+                    padding: 30px;
+                    border: 2px solid #f00;
+                    border-radius: 10px;
+                    background: rgba(255, 0, 0, 0.1);
                 }}
             </style>
         </head>
         <body>
             <div class="container">
-                <h1>⚠️ INTERNAL ERROR</h1>
-                <p>An unexpected error occurred. Please try again.</p>
-                <button onclick="window.close()">CLOSE WINDOW</button>
+                <h1>⚠️ ERROR</h1>
+                <p>An unexpected error occurred.</p>
+                <p>Please try again.</p>
             </div>
         </body>
         </html>
-        """, status_code=500)
+        """
+        return HTMLResponse(content=html_content, status_code=500)
 
 @app.get("/api/verify/{token}")
 async def verify_session(token: str):
@@ -1311,7 +1119,7 @@ async def complete_verification(token: str):
             expires_at = datetime.fromisoformat(session["expires_at"].replace('Z', '+00:00'))
         
         if expires_at < datetime.utcnow():
-            webapp_sessions.delete_one({"token": token})
+            webapp_sessions.delete_one({"token": token}")
             raise HTTPException(status_code=410, detail="Session expired")
     
     # Mark as verified

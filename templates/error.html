@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error - Protected Link Bot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+        
+        .hacker-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .hacker-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            color: #ff4757;
+            filter: drop-shadow(0 0 10px rgba(255, 71, 87, 0.5));
+        }
+        
+        .hacker-title {
+            font-size: 28px;
+            font-weight: 800;
+            background: linear-gradient(90deg, #ff4757, #ff6b81);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+        
+        .hacker-subtitle {
+            color: #94a3b8;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        .error-content {
+            background: rgba(255, 71, 87, 0.1);
+            border: 1px solid rgba(255, 71, 87, 0.3);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+        
+        .error-icon {
+            font-size: 32px;
+            color: #ff4757;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        
+        .error-title {
+            color: #ff6b81;
+            font-size: 20px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .error-message {
+            color: #cbd5e1;
+            text-align: center;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+        
+        .terminal-code {
+            background: #0a0a0a;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            border: 1px solid #334155;
+            font-family: 'Courier New', monospace;
+            color: #10b981;
+            font-size: 13px;
+            overflow-x: auto;
+        }
+        
+        .btn-back {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(90deg, #ff4757, #ff6b81);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            text-decoration: none;
+        }
+        
+        .btn-back:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(255, 71, 87, 0.4);
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #64748b;
+            font-size: 12px;
+        }
+        
+        .glow {
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+            from {
+                filter: drop-shadow(0 0 5px rgba(255, 71, 87, 0.5));
+            }
+            to {
+                filter: drop-shadow(0 0 20px rgba(255, 71, 87, 0.8));
+            }
+        }
+        
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, rgba(255, 71, 87, 0.6), transparent);
+            animation: scan 3s linear infinite;
+        }
+        
+        @keyframes scan {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 25px;
+            }
+            
+            .hacker-title {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="scan-line"></div>
+    
+    <div class="container">
+        <div class="hacker-header">
+            <div class="hacker-icon">⚠️</div>
+            <h1 class="hacker-title glow">SYSTEM ERROR</h1>
+            <div class="hacker-subtitle">PROTECTED LINK VERIFICATION SYSTEM</div>
+        </div>
+        
+        <div class="error-content">
+            <div class="error-icon">🔒</div>
+            <h2 class="error-title">ACCESS DENIED</h2>
+            <div class="error-message">
+                {{ error }}
+            </div>
+        </div>
+        
+        <div class="terminal-code">
+            <code>
+                [ERROR] {{ error }}<br>
+                [TIME] {{ now }}<br>
+                [CODE] ACCESS_VIOLATION<br>
+                [STATUS] VERIFICATION_FAILED<br>
+                [ACTION] RETURN_TO_TELEGRAM
+            </code>
+        </div>
+        
+        <button class="btn-back" onclick="window.close()">CLOSE WINDOW</button>
+        
+        <div class="footer">
+            © Protected Link Bot • Secure Verification System
+        </div>
+    </div>
+
+    <script>
+        // Update time in the terminal
+        function updateTime() {
+            const now = new Date().toISOString().replace('T', ' ').substr(0, 19) + ' UTC';
+            document.querySelector('code').innerHTML = document.querySelector('code').innerHTML.replace(
+                /\[TIME\].*<br>/,
+                `[TIME] ${now}<br>`
+            );
+        }
+        
+        updateTime();
+        setInterval(updateTime, 1000);
+        
+        // Add some terminal-like effects
+        document.addEventListener('DOMContentLoaded', function() {
+            const code = document.querySelector('.terminal-code code');
+            const text = code.innerHTML;
+            code.innerHTML = '';
+            
+            let i = 0;
+            function typeWriter() {
+                if (i < text.length) {
+                    code.innerHTML += text.charAt(i);
+                    i++;
+                    setTimeout(typeWriter, 10);
+                }
+            }
+            
+            setTimeout(typeWriter, 500);
+        });
+    </script>
+</body>
+</html>

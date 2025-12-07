@@ -7,6 +7,7 @@ import secrets
 import string
 import re
 import asyncio
+import socket
 from datetime import datetime, timedelta
 from typing import Dict, Optional, List
 from pymongo import MongoClient
@@ -53,7 +54,15 @@ else:
 if not TELEGRAM_TOKEN:
     raise Exception("TELEGRAM_TOKEN environment variable is required!")
 
-# --- Database Setup (MongoDB) with Error Handling ---
+# --- Database Setup (MongoDB) with Robust Error Handling ---
+def test_dns_resolution(hostname):
+    """Test if a hostname can be resolved"""
+    try:
+        socket.gethostbyname(hostname)
+        return True
+    except socket.gaierror:
+        return False
+
 def get_mongodb_client():
     """Initialize MongoDB client with robust error handling"""
     if not MONGODB_URI:
@@ -66,66 +75,77 @@ def get_mongodb_client():
         MONGODB_DB = os.environ.get("MONGODB_DB", "protected_bot_db")
         
         if all([MONGODB_USER, MONGODB_PASSWORD, MONGODB_CLUSTER]):
-            constructed_uri = f"mongodb+srv://{MONGODB_USER}:{MONGODB_PASSWORD}@{MONGODB_CLUSTER}/{MONGODB_DB}?retryWrites=true&w=majority"
-            logger.info(f"Constructing MONGODB_URI from separate variables")
-            return MongoClient(
-                constructed_uri,
-                serverSelectionTimeoutMS=10000,
-                connectTimeoutMS=15000,
-                socketTimeoutMS=45000,
-                tls=True,
-                tlsAllowInvalidCertificates=False
-            )
+            constructed_uri = f"mongodb+srv://{MONGODB_USER}:{MONGODB_PASSWORD}@{MONGODB_CLUSTER}/{MONGODB_DB}?retryWrites=true&w=majority&tls=true"
+            logger.info("Constructing MONGODB_URI from separate variables")
+            MONGODB_URI = constructed_uri
         else:
             raise Exception("MONGODB_URI environment variable is required and no fallback variables found!")
+
+    # Extract hostname for testing
+    hostname = None
+    if "@" in MONGODB_URI:
+        hostname = MONGODB_URI.split("@")[1].split("/")[0].split("?")[0]
+    
+    logger.info(f"Testing DNS resolution for: {hostname}")
+    
+    # Test DNS resolution first
+    if hostname and not test_dns_resolution(hostname):
+        logger.error(f"❌ DNS resolution failed for: {hostname}")
+        logger.error("Please check your MongoDB cluster name and network connectivity")
+        
+        # Try common fixes
+        if "mongodb+srv://" in MONGODB_URI:
+            # Try without SRV
+            alt_uri = MONGODB_URI.replace("mongodb+srv://", "mongodb://")
+            logger.info(f"Trying alternative URI without SRV: {alt_uri[:50]}...")
+            
+            # Extract alt hostname
+            alt_hostname = alt_uri.split("@")[1].split("/")[0].split("?")[0] if "@" in alt_uri else None
+            if alt_hostname and test_dns_resolution(alt_hostname):
+                logger.info(f"✅ Alternative hostname resolves: {alt_hostname}")
+                return MongoClient(alt_uri, serverSelectionTimeoutMS=10000)
+        
+        raise Exception(f"DNS resolution failed for MongoDB hostname: {hostname}. Please check your connection string and network settings.")
 
     # Try connecting with the provided URI
     try:
         logger.info("Attempting to connect to MongoDB...")
         
-        # First try with SRV
+        # First try with standard settings
         client = MongoClient(
             MONGODB_URI,
             serverSelectionTimeoutMS=10000,
             connectTimeoutMS=15000,
-            socketTimeoutMS=45000,
-            tls=True,
-            tlsAllowInvalidCertificates=False
+            socketTimeoutMS=30000,
+            retryWrites=True,
+            w='majority'
         )
         
         # Test connection
         client.admin.command('ping')
-        logger.info("✅ MongoDB connection successful (SRV)")
+        logger.info("✅ MongoDB connection successful")
         return client
         
     except Exception as e:
-        logger.error(f"❌ MongoDB SRV connection failed: {e}")
+        logger.error(f"❌ MongoDB connection failed: {e}")
         
-        # If SRV failed, try without SRV
+        # If using SRV and it fails, try without SRV
         if "mongodb+srv://" in MONGODB_URI:
-            logger.info("🔄 Trying alternative connection without SRV...")
+            logger.info("🔄 Trying connection without SRV...")
             try:
-                # Replace mongodb+srv:// with mongodb://
+                # Replace mongodb+srv:// with mongodb:// and add standard port
                 alt_uri = MONGODB_URI.replace("mongodb+srv://", "mongodb://")
-                # Add standard port if not present
-                if ":27017" not in alt_uri and "@" in alt_uri:
-                    # Insert port after cluster name but before query params
-                    parts = alt_uri.split('@')
-                    if len(parts) == 2:
-                        cluster_part = parts[1]
-                        if '?' in cluster_part:
-                            cluster, query = cluster_part.split('?', 1)
-                            alt_uri = f"{parts[0]}@{cluster}:27017?{query}"
-                        else:
-                            alt_uri = f"{parts[0]}@{cluster_part}:27017"
                 
+                # For MongoDB Atlas, we need to use specific replica set hosts
+                # This is a fallback for when SRV doesn't work
                 client = MongoClient(
                     alt_uri,
                     serverSelectionTimeoutMS=15000,
                     connectTimeoutMS=20000,
-                    socketTimeoutMS=45000,
-                    tls=True,
-                    tlsAllowInvalidCertificates=False
+                    socketTimeoutMS=30000,
+                    retryWrites=True,
+                    w='majority',
+                    directConnection=False
                 )
                 
                 client.admin.command('ping')
@@ -134,13 +154,47 @@ def get_mongodb_client():
                 
             except Exception as alt_e:
                 logger.error(f"❌ Alternative connection also failed: {alt_e}")
-                raise Exception(f"MongoDB connection failed: {e}. Alternative also failed: {alt_e}")
+                raise Exception(f"MongoDB connection failed. Please check your connection string and ensure MongoDB Atlas cluster is running and accessible.")
         else:
             raise Exception(f"MongoDB connection failed: {e}")
 
-# Initialize MongoDB client
-try:
-    client = get_mongodb_client()
+# Initialize MongoDB client with retry logic
+max_retries = 3
+retry_delay = 5  # seconds
+client = None
+
+for attempt in range(max_retries):
+    try:
+        client = get_mongodb_client()
+        logger.info(f"✅ MongoDB connected successfully (attempt {attempt + 1}/{max_retries})")
+        break
+    except Exception as e:
+        logger.error(f"Attempt {attempt + 1}/{max_retries} failed: {e}")
+        if attempt < max_retries - 1:
+            logger.info(f"Retrying in {retry_delay} seconds...")
+            time.sleep(retry_delay)
+        else:
+            logger.critical("Failed to connect to MongoDB after all retries")
+            # Create dummy collections for testing
+            class DummyCollection:
+                def find_one(self, *args, **kwargs): return None
+                def find(self, *args, **kwargs): return []
+                def insert_one(self, *args, **kwargs): return type('obj', (object,), {'inserted_id': 'dummy'})
+                def update_one(self, *args, **kwargs): pass
+                def delete_one(self, *args, **kwargs): pass
+                def count_documents(self, *args, **kwargs): return 0
+                def create_index(self, *args, **kwargs): pass
+            
+            links_collection = DummyCollection()
+            webapp_sessions = DummyCollection()
+            users_collection = DummyCollection()
+            channel_verification = DummyCollection()
+            broadcasts_collection = DummyCollection()
+            
+            if not os.environ.get("ALLOW_NO_MONGODB", "false").lower() == "true":
+                raise
+
+if client:
     db_name = "protected_bot_db"
     db = client[db_name]
     
@@ -152,35 +206,16 @@ try:
     broadcasts_collection = db["broadcasts"]
     
     # Create indexes
-    links_collection.create_index("created_at", expireAfterSeconds=2592000)  # 30 days
-    links_collection.create_index("_id", unique=True)
-    webapp_sessions.create_index("created_at", expireAfterSeconds=1800)  # 30 minutes
-    webapp_sessions.create_index("token", unique=True)
-    users_collection.create_index("user_id", unique=True)
-    users_collection.create_index("last_active")
-    
-    logger.info("✅ MongoDB collections and indexes initialized")
-    
-except Exception as e:
-    logger.error(f"❌ Failed to initialize MongoDB: {e}")
-    # Create dummy collections for testing (will fail in production)
-    class DummyCollection:
-        def find_one(self, *args, **kwargs): return None
-        def find(self, *args, **kwargs): return []
-        def insert_one(self, *args, **kwargs): return type('obj', (object,), {'inserted_id': 'dummy'})
-        def update_one(self, *args, **kwargs): pass
-        def delete_one(self, *args, **kwargs): pass
-        def count_documents(self, *args, **kwargs): return 0
-        def create_index(self, *args, **kwargs): pass
-    
-    links_collection = DummyCollection()
-    webapp_sessions = DummyCollection()
-    users_collection = DummyCollection()
-    channel_verification = DummyCollection()
-    broadcasts_collection = DummyCollection()
-    
-    if not os.environ.get("ALLOW_NO_MONGODB"):
-        raise
+    try:
+        links_collection.create_index("created_at", expireAfterSeconds=2592000)  # 30 days
+        links_collection.create_index("_id", unique=True)
+        webapp_sessions.create_index("created_at", expireAfterSeconds=1800)  # 30 minutes
+        webapp_sessions.create_index("token", unique=True)
+        users_collection.create_index("user_id", unique=True)
+        users_collection.create_index("last_active")
+        logger.info("✅ MongoDB collections and indexes initialized")
+    except Exception as e:
+        logger.error(f"Error creating indexes: {e}")
 
 # --- Helper Functions ---
 def generate_encoded_string(length: int = 16) -> str:
@@ -750,8 +785,11 @@ async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
     
     try:
-        client.admin.command('ping')
-        mongo_status = "✅ Connected"
+        if hasattr(client, 'admin'):
+            client.admin.command('ping')
+            mongo_status = "✅ Connected"
+        else:
+            mongo_status = "❌ No connection"
     except Exception as e:
         mongo_status = f"❌ Error: {e}"
     
@@ -786,12 +824,15 @@ async def on_startup():
     """Initialize bot"""
     logger.info("Application startup...")
     
-    # Initialize database connection test
-    try:
-        client.admin.command('ping')
-        logger.info("✅ MongoDB connected successfully on startup")
-    except Exception as e:
-        logger.error(f"❌ MongoDB connection failed on startup: {e}")
+    # Test MongoDB connection if available
+    if hasattr(client, 'admin'):
+        try:
+            client.admin.command('ping')
+            logger.info("✅ MongoDB connected successfully on startup")
+        except Exception as e:
+            logger.error(f"❌ MongoDB connection failed on startup: {e}")
+    else:
+        logger.warning("⚠️ MongoDB client not available, running in limited mode")
     
     # Initialize and start PTB
     await telegram_bot_app.initialize()
@@ -812,11 +853,12 @@ async def on_shutdown():
     logger.info("Application shutdown...")
     await telegram_bot_app.stop()
     await telegram_bot_app.shutdown()
-    try:
-        client.close()
-        logger.info("MongoDB connection closed")
-    except:
-        pass
+    if hasattr(client, 'close'):
+        try:
+            client.close()
+            logger.info("MongoDB connection closed")
+        except:
+            pass
     logger.info("Application shutdown complete")
 
 @app.post("/{token}")
@@ -925,13 +967,16 @@ async def complete_verification(token: str, request: Request):
 async def health_check():
     """Health check endpoint"""
     try:
-        # Test MongoDB connection
-        mongo_status = "connected" if client.admin.command('ping') else "disconnected"
+        # Test MongoDB connection if available
+        if hasattr(client, 'admin'):
+            mongo_status = "connected" if client.admin.command('ping') else "disconnected"
+        else:
+            mongo_status = "no_connection"
     except:
         mongo_status = "disconnected"
     
     return {
-        "status": "ok",
+        "status": "ok" if mongo_status == "connected" else "degraded",
         "timestamp": datetime.utcnow().isoformat(),
         "mongodb": mongo_status,
         "total_users": users_collection.count_documents({}),
@@ -945,11 +990,13 @@ async def root():
         "service": "Telegram Protected Link Bot",
         "version": "2.0.0",
         "status": "running",
+        "mongodb": "connected" if hasattr(client, 'admin') else "not_connected",
         "webapp": True,
         "features": ["channel_verification", "webapp_interface", "analytics", "admin_tools"]
     }
 
 if __name__ == "__main__":
     import uvicorn
+    import time
     port = int(os.environ.get("PORT", 8443))
     uvicorn.run(app, host="0.0.0.0", port=port)

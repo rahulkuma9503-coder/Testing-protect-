@@ -1,0 +1,42 @@
+[file name]: .dockerignore
+[file content begin]
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+.venv/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Logs
+logs/
+*.log
+
+# Environment files
+.env
+.env.local
+
+# Docker
+docker-compose.override.yml
+
+# Test files
+test_*.py
+[file content end]

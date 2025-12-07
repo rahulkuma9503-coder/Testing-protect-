@@ -22,4 +22,5 @@ USER botuser
 
 EXPOSE 8443
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "${PORT:-8443}"]
+# Use shell form to handle environment variable
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8443}

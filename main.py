@@ -8,6 +8,7 @@ import string
 import re
 import asyncio
 import socket
+import time  # Added import
 from datetime import datetime, timedelta
 from typing import Dict, Optional, List
 from pymongo import MongoClient
@@ -65,7 +66,12 @@ def test_dns_resolution(hostname):
 
 def get_mongodb_client():
     """Initialize MongoDB client with robust error handling"""
-    if not MONGODB_URI:
+    # Use the global MONGODB_URI variable
+    global MONGODB_URI
+    
+    mongodb_uri = MONGODB_URI  # Local variable to avoid modification issues
+    
+    if not mongodb_uri:
         logger.error("MONGODB_URI environment variable is not set!")
         
         # Try to construct from separate variables as fallback
@@ -75,16 +81,15 @@ def get_mongodb_client():
         MONGODB_DB = os.environ.get("MONGODB_DB", "protected_bot_db")
         
         if all([MONGODB_USER, MONGODB_PASSWORD, MONGODB_CLUSTER]):
-            constructed_uri = f"mongodb+srv://{MONGODB_USER}:{MONGODB_PASSWORD}@{MONGODB_CLUSTER}/{MONGODB_DB}?retryWrites=true&w=majority&tls=true"
+            mongodb_uri = f"mongodb+srv://{MONGODB_USER}:{MONGODB_PASSWORD}@{MONGODB_CLUSTER}/{MONGODB_DB}?retryWrites=true&w=majority&tls=true"
             logger.info("Constructing MONGODB_URI from separate variables")
-            MONGODB_URI = constructed_uri
         else:
             raise Exception("MONGODB_URI environment variable is required and no fallback variables found!")
 
     # Extract hostname for testing
     hostname = None
-    if "@" in MONGODB_URI:
-        hostname = MONGODB_URI.split("@")[1].split("/")[0].split("?")[0]
+    if "@" in mongodb_uri:
+        hostname = mongodb_uri.split("@")[1].split("/")[0].split("?")[0]
     
     logger.info(f"Testing DNS resolution for: {hostname}")
     
@@ -94,9 +99,9 @@ def get_mongodb_client():
         logger.error("Please check your MongoDB cluster name and network connectivity")
         
         # Try common fixes
-        if "mongodb+srv://" in MONGODB_URI:
+        if "mongodb+srv://" in mongodb_uri:
             # Try without SRV
-            alt_uri = MONGODB_URI.replace("mongodb+srv://", "mongodb://")
+            alt_uri = mongodb_uri.replace("mongodb+srv://", "mongodb://")
             logger.info(f"Trying alternative URI without SRV: {alt_uri[:50]}...")
             
             # Extract alt hostname
@@ -113,7 +118,7 @@ def get_mongodb_client():
         
         # First try with standard settings
         client = MongoClient(
-            MONGODB_URI,
+            mongodb_uri,
             serverSelectionTimeoutMS=10000,
             connectTimeoutMS=15000,
             socketTimeoutMS=30000,
@@ -130,11 +135,11 @@ def get_mongodb_client():
         logger.error(f"❌ MongoDB connection failed: {e}")
         
         # If using SRV and it fails, try without SRV
-        if "mongodb+srv://" in MONGODB_URI:
+        if "mongodb+srv://" in mongodb_uri:
             logger.info("🔄 Trying connection without SRV...")
             try:
                 # Replace mongodb+srv:// with mongodb:// and add standard port
-                alt_uri = MONGODB_URI.replace("mongodb+srv://", "mongodb://")
+                alt_uri = mongodb_uri.replace("mongodb+srv://", "mongodb://")
                 
                 # For MongoDB Atlas, we need to use specific replica set hosts
                 # This is a fallback for when SRV doesn't work
@@ -997,6 +1002,5 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    import time
     port = int(os.environ.get("PORT", 8443))
     uvicorn.run(app, host="0.0.0.0", port=port)

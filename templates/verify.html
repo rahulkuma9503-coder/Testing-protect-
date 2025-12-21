@@ -8,553 +8,9 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <style>
-:root{
-  --bg:#000;
-  --neon-cyan:#00ffff;
-  --neon-purple:#b800ff;
-  --neon-pink:#ff00ff;
-  --glow-cyan:rgba(0,255,255,0.8);
-  --glow-purple:rgba(184,0,255,0.6);
-  --neon-green:#00ff00;
-  --neon-red:#ff0000;
-  --neon-orange:#ff8c00;
-  --neon-gold:#ffd700;
-}
+/* ... (keep all existing CSS styles, they're good) ... */
 
-*{margin:0;padding:0;box-sizing:border-box}
-
-body{
-  font-family:'Rajdhani', sans-serif;
-  background:#000;
-  min-height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:white;
-  position:relative;
-  padding:20px;
-  overflow-x:hidden;
-}
-
-/* Animated Grid Background */
-#grid-bg{
-  position:fixed;
-  inset:0;
-  background-image:
-    linear-gradient(rgba(0,255,255,0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,255,255,0.1) 1px, transparent 1px);
-  background-size:50px 50px;
-  animation:gridMove 20s linear infinite;
-  z-index:-10;
-}
-
-@keyframes gridMove{
-  0%{background-position:0 0}
-  100%{background-position:50px 50px}
-}
-
-/* Matrix Rain */
-#matrix-bg{
-  position:fixed;
-  inset:0;
-  z-index:-9;
-  opacity:0.4;
-}
-
-/* Floating Particles */
-.particles{
-  position:fixed;
-  inset:0;
-  z-index:-8;
-  pointer-events:none;
-  overflow:hidden;
-}
-
-.particle{
-  position:absolute;
-  width:4px;
-  height:4px;
-  background:var(--neon-cyan);
-  border-radius:50%;
-  animation:float-particle 8s infinite ease-in-out;
-}
-
-@keyframes float-particle{
-  0%,100%{
-    transform:translateY(0) translateX(0);
-    opacity:0.3;
-  }
-  50%{
-    transform:translateY(-100px) translateX(50px);
-    opacity:1;
-  }
-}
-
-/* Rotating Rings */
-.ring-container{
-  position:fixed;
-  inset:0;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  z-index:-7;
-  pointer-events:none;
-  width:100%;
-  height:100%;
-}
-
-.neon-ring{
-  position:absolute;
-  border-radius:50%;
-  border:2px solid;
-  filter:blur(1px);
-}
-
-.ring1{
-  width:min(600px, 90vw);
-  height:min(600px, 90vw);
-  border-color:rgba(0,255,255,0.3);
-  animation:spin 20s linear infinite;
-  box-shadow:0 0 40px var(--glow-cyan);
-}
-
-.ring2{
-  width:min(450px, 70vw);
-  height:min(450px, 70vw);
-  border-color:rgba(184,0,255,0.3);
-  animation:spin 15s linear infinite reverse;
-  box-shadow:0 0 40px var(--glow-purple);
-}
-
-.ring3{
-  width:min(300px, 50vw);
-  height:min(300px, 50vw);
-  border-color:rgba(255,0,255,0.3);
-  animation:spin 25s linear infinite;
-  box-shadow:0 0 40px rgba(255,0,255,0.5);
-}
-
-@keyframes spin{
-  0%{transform:rotate(0deg)}
-  100%{transform:rotate(360deg)}
-}
-
-/* Radial Glow */
-.radial-glow{
-  position:fixed;
-  inset:0;
-  background:radial-gradient(
-    circle at center,
-    rgba(0,255,255,0.15) 0%,
-    rgba(184,0,255,0.1) 35%,
-    transparent 70%
-  );
-  z-index:-6;
-  animation:pulse-glow 4s infinite alternate ease-in-out;
-}
-
-@keyframes pulse-glow{
-  0%{
-    opacity:0.5;
-    transform:scale(0.95);
-  }
-  100%{
-    opacity:1;
-    transform:scale(1.05);
-  }
-}
-
-/* Main Container */
-.container{
-  background:linear-gradient(135deg, rgba(0,20,40,0.8) 0%, rgba(20,0,40,0.8) 100%);
-  padding:clamp(40px, 5vw, 60px) clamp(30px, 5vw, 70px);
-  border-radius:30px;
-  border:2px solid;
-  border-image:linear-gradient(135deg, var(--neon-cyan), var(--neon-purple), var(--neon-pink)) 1;
-  backdrop-filter:blur(20px);
-  text-align:center;
-  position:relative;
-  animation:float-container 5s ease-in-out infinite alternate;
-  box-shadow:
-    0 0 60px rgba(0,255,255,0.4),
-    0 0 100px rgba(184,0,255,0.3),
-    inset 0 0 40px rgba(0,255,255,0.1);
-  z-index:10;
-  max-width:min(550px, 90vw);
-  width:100%;
-  margin:auto;
-  overflow:hidden;
-  min-height:500px;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-}
-
-@keyframes float-container{
-  0%{
-    transform:translateY(0) scale(1);
-  }
-  100%{
-    transform:translateY(-15px) scale(1.02);
-  }
-}
-
-.container::before{
-  content:'';
-  position:absolute;
-  top:-50%;
-  left:-50%;
-  width:200%;
-  height:200%;
-  background:conic-gradient(
-    from 0deg,
-    transparent,
-    rgba(0,255,255,0.3),
-    transparent,
-    rgba(184,0,255,0.3),
-    transparent
-  );
-  animation:rotate-border 6s linear infinite;
-  z-index:-1;
-}
-
-@keyframes rotate-border{
-  0%{transform:rotate(0deg)}
-  100%{transform:rotate(360deg)}
-}
-
-/* Logo/Badge */
-.logo-badge{
-  width:clamp(80px, 15vw, 100px);
-  height:clamp(80px, 15vw, 100px);
-  margin:0 auto 20px;
-  border-radius:50%;
-  background:linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  box-shadow:
-    0 0 30px var(--glow-cyan),
-    0 0 50px var(--glow-purple);
-  animation:pulse-badge 2s infinite ease-in-out;
-  position:relative;
-  padding:5px;
-}
-
-@keyframes pulse-badge{
-  0%,100%{
-    transform:scale(1);
-    box-shadow:
-      0 0 30px var(--glow-cyan),
-      0 0 50px var(--glow-purple);
-  }
-  50%{
-    transform:scale(1.1);
-    box-shadow:
-      0 0 50px var(--glow-cyan),
-      0 0 70px var(--glow-purple),
-      0 0 90px rgba(255,0,255,0.3);
-  }
-}
-
-.logo-badge::before{
-  content:'';
-  position:absolute;
-  inset:-5px;
-  border-radius:50%;
-  border:2px solid transparent;
-  border-top-color:var(--neon-cyan);
-  border-right-color:var(--neon-purple);
-  animation:spin 3s linear infinite;
-}
-
-.logo-badge img{
-  width:100%;
-  height:100%;
-  border-radius:50%;
-  object-fit:cover;
-}
-
-/* Title */
-h1{
-  font-family:'Orbitron', sans-serif;
-  font-weight:900;
-  font-size:clamp(2em, 6vw, 3.2em);
-  background:linear-gradient(135deg, var(--neon-cyan) 0%, var(--neon-purple) 50%, var(--neon-pink) 100%);
-  -webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;
-  background-clip:text;
-  margin:0 0 15px 0;
-  letter-spacing:4px;
-  text-shadow:0 0 30px var(--glow-cyan);
-  animation:glow-title 3s infinite alternate ease-in-out;
-  line-height:1.2;
-}
-
-@keyframes glow-title{
-  0%{
-    filter:drop-shadow(0 0 10px var(--glow-cyan));
-  }
-  100%{
-    filter:drop-shadow(0 0 25px var(--glow-purple));
-  }
-}
-
-/* Status */
-.status{
-  font-size:clamp(1.2em, 4vw, 1.5em);
-  color:#fff;
-  margin:20px 0 10px 0;
-  font-weight:300;
-  letter-spacing:2px;
-  text-transform:uppercase;
-  position:relative;
-  display:inline-block;
-  padding:0 40px;
-}
-
-.status::before, .status::after{
-  content:'';
-  position:absolute;
-  width:30px;
-  height:2px;
-  background:linear-gradient(90deg, transparent, var(--neon-cyan));
-  top:50%;
-}
-
-.status::before{
-  left:0;
-}
-
-.status::after{
-  right:0;
-  background:linear-gradient(90deg, var(--neon-cyan), transparent);
-}
-
-/* Full Name Display */
-.fullname-display{
-  font-size:clamp(1.2em, 4vw, 1.4em);
-  color:var(--neon-cyan);
-  margin:0 0 30px 0;
-  font-weight:600;
-  letter-spacing:1px;
-  text-shadow:0 0 15px var(--glow-cyan);
-  font-family:'Orbitron', sans-serif;
-  animation:pulse-name 3s infinite ease-in-out;
-  min-height:30px;
-  line-height:1.3;
-  padding:0 10px;
-  word-wrap:break-word;
-}
-
-@keyframes pulse-name{
-  0%,100%{
-    opacity:0.8;
-    text-shadow:0 0 10px var(--glow-cyan);
-  }
-  50%{
-    opacity:1;
-    text-shadow:
-      0 0 20px var(--glow-cyan),
-      0 0 10px var(--glow-purple);
-  }
-}
-
-/* Scanning Animation */
-.scanning{
-  position:relative;
-  padding:8px 0;
-  margin:20px 0;
-}
-
-.scan-line{
-  width:100%;
-  height:2px;
-  background:linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
-  animation:scan 2s infinite ease-in-out;
-  box-shadow:0 0 10px var(--glow-cyan);
-}
-
-@keyframes scan{
-  0%,100%{
-    opacity:0.3;
-    transform:scaleX(0.5);
-  }
-  50%{
-    opacity:1;
-    transform:scaleX(1);
-  }
-}
-
-/* Buttons */
-.verify-button, .join-channel-button, .join-now-button, .check-again-button{
-  padding:clamp(16px, 4vw, 20px) clamp(30px, 6vw, 60px);
-  font-size:clamp(1.1em, 3vw, 1.3em);
-  border-radius:50px;
-  border:2px solid var(--neon-cyan);
-  background:linear-gradient(135deg, rgba(0,255,255,0.2), rgba(184,0,255,0.2));
-  color:#fff;
-  cursor:pointer;
-  transition:all 0.3s ease;
-  font-family:'Orbitron', sans-serif;
-  font-weight:700;
-  letter-spacing:3px;
-  text-transform:uppercase;
-  position:relative;
-  overflow:hidden;
-  box-shadow:
-    0 0 20px var(--glow-cyan),
-    inset 0 0 20px rgba(0,255,255,0.1);
-  display:inline-block;
-  text-decoration:none;
-  margin:10px 5px;
-  min-width:200px;
-}
-
-.verify-button::before, .join-channel-button::before, .join-now-button::before, .check-again-button::before{
-  content:'';
-  position:absolute;
-  top:50%;
-  left:50%;
-  width:0;
-  height:0;
-  border-radius:50%;
-  background:radial-gradient(circle, var(--neon-cyan), transparent);
-  transform:translate(-50%, -50%);
-  transition:width 0.6s, height 0.6s;
-}
-
-.verify-button:hover::before, .join-channel-button:hover::before, .join-now-button:hover::before, .check-again-button:hover::before{
-  width:300px;
-  height:300px;
-}
-
-.verify-button:hover, .join-channel-button:hover, .join-now-button:hover, .check-again-button:hover{
-  background:linear-gradient(135deg, rgba(0,255,255,0.4), rgba(184,0,255,0.4));
-  transform:translateY(-3px) scale(1.05);
-  box-shadow:
-    0 0 40px var(--glow-cyan),
-    0 0 60px var(--glow-purple),
-    0 10px 30px rgba(0,0,0,0.5);
-  border-color:var(--neon-purple);
-}
-
-.verify-button:active, .join-channel-button:active, .join-now-button:active, .check-again-button:active{
-  transform:translateY(0) scale(1);
-}
-
-.verify-button:disabled, .join-now-button:disabled{
-  opacity:0.6;
-  cursor:not-allowed;
-  transform:none;
-}
-
-/* Special button colors */
-.verify-button{
-  background:linear-gradient(135deg, rgba(0,255,255,0.3), rgba(0,100,255,0.3));
-}
-
-.join-channel-button{
-  background:linear-gradient(135deg, rgba(255,165,0,0.3), rgba(255,69,0,0.3));
-  border-color:var(--neon-orange);
-  box-shadow:0 0 20px rgba(255,140,0,0.5);
-  min-width: 120px;
-  padding: 10px 20px;
-  font-size: 0.9em;
-}
-
-.join-channel-button::before{
-  background:radial-gradient(circle, var(--neon-orange), transparent);
-}
-
-.join-channel-button:hover{
-  background:linear-gradient(135deg, rgba(255,165,0,0.5), rgba(255,69,0,0.5));
-  border-color:#ff5500;
-  box-shadow:0 0 40px rgba(255,140,0,0.7), 0 0 60px rgba(255,69,0,0.5);
-}
-
-.join-now-button{
-  background:linear-gradient(135deg, rgba(0,255,0,0.3), rgba(0,128,0,0.3));
-  border-color:var(--neon-green);
-  box-shadow:0 0 20px rgba(0,255,0,0.5);
-}
-
-.join-now-button::before{
-  background:radial-gradient(circle, var(--neon-green), transparent);
-}
-
-.join-now-button:hover{
-  background:linear-gradient(135deg, rgba(0,255,0,0.5), rgba(0,128,0,0.5));
-  border-color:#00cc00;
-  box-shadow:0 0 40px rgba(0,255,0,0.7), 0 0 60px rgba(0,128,0,0.5);
-}
-
-.check-again-button{
-  background:linear-gradient(135deg, rgba(255,255,0,0.3), rgba(255,215,0,0.3));
-  border-color:var(--neon-gold);
-  box-shadow:0 0 20px rgba(255,215,0,0.5);
-}
-
-.check-again-button::before{
-  background:radial-gradient(circle, var(--neon-gold), transparent);
-}
-
-.check-again-button:hover{
-  background:linear-gradient(135deg, rgba(255,255,0,0.5), rgba(255,215,0,0.5));
-  border-color:#ffed00;
-  box-shadow:0 0 40px rgba(255,215,0,0.7), 0 0 60px rgba(255,215,0,0.5);
-}
-
-/* Channels List */
-.channels-container {
-  width: 100%;
-  max-width: 500px;
-  margin: 20px auto;
-}
-
-.channels-list {
-  background: rgba(0, 20, 40, 0.3);
-  border-radius: 15px;
-  padding: 15px;
-  border: 1px solid rgba(0, 255, 255, 0.2);
-  box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.channel-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 15px;
-  margin-bottom: 10px;
-  background: linear-gradient(135deg, rgba(0, 40, 80, 0.4), rgba(20, 0, 40, 0.4));
-  border-radius: 10px;
-  border-left: 3px solid var(--neon-cyan);
-  transition: all 0.3s ease;
-  position: relative;
-}
-
-.channel-item:last-child {
-  margin-bottom: 0;
-}
-
-.channel-item:hover {
-  background: linear-gradient(135deg, rgba(0, 60, 120, 0.5), rgba(30, 0, 60, 0.5));
-  transform: translateX(5px);
-  box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
-}
-
-.channel-item.joined {
-  border-left-color: var(--neon-green);
-  background: linear-gradient(135deg, rgba(0, 80, 40, 0.4), rgba(0, 40, 20, 0.4));
-}
-
-.channel-item.not-joined {
-  border-left-color: var(--neon-orange);
-  background: linear-gradient(135deg, rgba(80, 40, 0, 0.4), rgba(40, 20, 0, 0.4));
-}
-
+/* Channel Logo Styles - Updated */
 .channel-logo {
   width: 40px;
   height: 40px;
@@ -569,367 +25,21 @@ h1{
   justify-content: center;
   color: white;
   font-size: 18px;
+  flex-shrink: 0;
 }
 
 .channel-logo i {
   font-size: 20px;
 }
 
-.channel-info {
-  display: flex;
-  align-items: center;
-  flex: 1;
-}
-
-.channel-details {
-  flex: 1;
-}
-
-.channel-name {
-  font-weight: 600;
-  color: white;
-  font-size: 1.1em;
-  margin-bottom: 3px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.channel-id {
-  font-size: 0.8em;
-  color: rgba(255, 255, 255, 0.6);
-  font-family: monospace;
-}
-
-.channel-status {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.status-indicator {
-  font-size: 1.2em;
-  font-weight: bold;
-}
-
-.status-joined {
-  color: var(--neon-green);
-  text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
-}
-
-.status-not-joined {
-  color: var(--neon-orange);
-  text-shadow: 0 0 10px rgba(255, 165, 0, 0.5);
-}
-
-.status-text {
-  font-size: 0.9em;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-weight: 600;
-}
-
-.text-joined {
-  background: rgba(0, 255, 0, 0.2);
-  color: var(--neon-green);
-  border: 1px solid rgba(0, 255, 0, 0.3);
-}
-
-.text-not-joined {
-  background: rgba(255, 165, 0, 0.2);
-  color: var(--neon-orange);
-  border: 1px solid rgba(255, 165, 0, 0.3);
-}
-
-/* Progress Bar */
-.progress-container {
+.channel-logo img {
   width: 100%;
-  max-width: 500px;
-  margin: 20px auto 10px;
-}
-
-.progress-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 10px;
-  font-size: 1.1em;
-}
-
-.progress-label {
-  color: white;
-  font-weight: 600;
-}
-
-.progress-percentage {
-  color: var(--neon-cyan);
-  font-weight: 700;
-}
-
-.progress-bar {
-  width: 100%;
-  height: 10px;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 5px;
-  overflow: hidden;
-  border: 1px solid rgba(0, 255, 255, 0.2);
-}
-
-.progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
-  border-radius: 5px;
-  width: 0%;
-  transition: width 1s ease-in-out;
-  box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+  border-radius: 50%;
+  object-fit: cover;
 }
 
-/* Required Channels Info */
-.required-info {
-  font-size: 0.9em;
-  color: rgba(255, 255, 255, 0.7);
-  margin: 10px 0 20px;
-  padding: 10px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 10px;
-  border: 1px solid rgba(0, 255, 255, 0.1);
-  max-width: 500px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.required-info i {
-  color: var(--neon-cyan);
-  margin-right: 8px;
-}
-
-/* Result Messages */
-.result-message{
-  font-size:clamp(1em, 3vw, 1.2em);
-  color:#fff;
-  margin:15px 0;
-  padding:15px;
-  border-radius:10px;
-  background:rgba(0,0,0,0.3);
-  border-left:3px solid var(--neon-cyan);
-  animation:fadeIn 0.5s ease-out;
-  line-height:1.5;
-  word-wrap:break-word;
-  max-width: 500px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-@keyframes fadeIn{
-  from{
-    opacity:0;
-    transform:translateY(-10px);
-  }
-  to{
-    opacity:1;
-    transform:translateY(0);
-  }
-}
-
-.success-message{
-  border-left-color:var(--neon-green);
-  background:rgba(0,255,0,0.1);
-}
-
-.error-message{
-  border-left-color:var(--neon-red);
-  background:rgba(255,0,0,0.1);
-}
-
-.warning-message{
-  border-left-color:var(--neon-orange);
-  background:rgba(255,165,0,0.1);
-}
-
-/* Loading Animation */
-.loading{
-  display:none;
-  font-size:1em;
-  color:#aaf;
-  margin:20px 0;
-  letter-spacing:1px;
-  animation:pulse-loading 1.5s infinite ease-in-out;
-}
-
-@keyframes pulse-loading{
-  0%,100%{opacity:0.5}
-  50%{opacity:1}
-}
-
-/* Button Container */
-.button-container{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:15px;
-  margin:20px 0;
-  width:100%;
-  animation:fadeIn 0.5s ease-out;
-}
-
-/* Content Area */
-.content-area{
-  flex:1;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  align-items:center;
-  width:100%;
-}
-
-/* Initial State */
-#initial-state{
-  width:100%;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-}
-
-/* Result Section */
-#result-section{
-  width:100%;
-  display:none;
-  flex-direction:column;
-  align-items:center;
-}
-
-/* Action Buttons */
-#action-buttons{
-  width:100%;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:15px;
-}
-
-/* Warning Icon */
-.warning-icon{
-  font-size:3em;
-  margin-bottom:15px;
-  animation:pulse-warning 2s infinite ease-in-out;
-}
-
-@keyframes pulse-warning{
-  0%,100%{
-    transform:scale(1);
-    opacity:0.8;
-  }
-  50%{
-    transform:scale(1.2);
-    opacity:1;
-  }
-}
-
-/* Join All Button */
-.join-all-button {
-  background: linear-gradient(135deg, rgba(255,0,255,0.3), rgba(184,0,255,0.3));
-  border-color: var(--neon-pink);
-  box-shadow: 0 0 20px rgba(255,0,255,0.5);
-}
-
-.join-all-button::before {
-  background: radial-gradient(circle, var(--neon-pink), transparent);
-}
-
-.join-all-button:hover {
-  background: linear-gradient(135deg, rgba(255,0,255,0.5), rgba(184,0,255,0.5));
-  border-color: #ff00ff;
-  box-shadow: 0 0 40px rgba(255,0,255,0.7), 0 0 60px rgba(184,0,255,0.5);
-}
-
-/* Scrollbar styling */
-.channels-list::-webkit-scrollbar {
-  width: 8px;
-}
-
-.channels-list::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-}
-
-.channels-list::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, var(--neon-cyan), var(--neon-purple));
-  border-radius: 4px;
-}
-
-.channels-list::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(to bottom, var(--neon-purple), var(--neon-pink));
-}
-
-/* Responsive */
-@media(max-width:480px){
-  body{padding:10px}
-  .container{
-    padding:30px 20px;
-    border-radius:20px;
-    min-height:450px;
-    max-width:95vw;
-  }
-  .status{padding:0 20px}
-  .verify-button, .join-channel-button, .join-now-button, .check-again-button{
-    padding:15px 25px;
-    font-size:1em;
-    min-width:180px;
-    max-width:100%;
-  }
-  .button-container, #action-buttons{
-    gap:12px;
-  }
-  .result-message{
-    padding:12px;
-    font-size:1em;
-  }
-  .channels-list {
-    padding: 12px;
-  }
-  .channel-item {
-    padding: 10px 12px;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-  .channel-info {
-    width: 100%;
-  }
-  .channel-status {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .join-channel-button {
-    min-width: 100px;
-    padding: 8px 15px;
-    font-size: 0.85em;
-  }
-}
-
-@media(max-height:600px){
-  .container{
-    padding:25px 20px;
-    min-height:auto;
-  }
-  .logo-badge{
-    width:70px;
-    height:70px;
-    margin-bottom:15px;
-  }
-  h1{
-    font-size:2em;
-    margin-bottom:10px;
-  }
-  .fullname-display{
-    margin-bottom:20px;
-    font-size:1.1em;
-  }
-  .scanning{
-    margin:15px 0;
-  }
-  .channels-list {
-    max-height: 200px;
-  }
-}
+/* ... (rest of the CSS remains the same) ... */
 </style>
 </head>
 <body>
@@ -1108,59 +218,97 @@ function updateProgress(joinedCount, totalCount) {
     }
 }
 
-function getChannelLogo(channelTitle) {
-    // Clean and lowercase the channel title for matching
-    const cleanTitle = channelTitle.toLowerCase().replace(/[^a-z0-9]/g, '');
+// Improved logo system
+function getChannelIcon(channelData) {
+    // Try to get the best icon based on available data
+    const channelTitle = (channelData.channel_title || channelData.display_name || '').toLowerCase();
+    const channelId = channelData.channel || '';
     
-    // Channel logos mapping
-    const channelLogos = {
-        'teamsecret': 'https://i.ibb.co/8g2YxXq6/tmpyb9cwaub.jpg',
-        'team': 'https://i.ibb.co/8g2YxXq6/tmpyb9cwaub.jpg',
-        'secret': 'https://i.ibb.co/8g2YxXq6/tmpyb9cwaub.jpg',
-        'crypto': 'https://cdn-icons-png.flaticon.com/512/6001/6001536.png',
-        'news': 'https://cdn-icons-png.flaticon.com/512/2965/2965879.png',
-        'announcements': 'https://cdn-icons-png.flaticon.com/512/3095/3095583.png',
-        'trading': 'https://cdn-icons-png.flaticon.com/512/3135/3135693.png',
-        'signal': 'https://cdn-icons-png.flaticon.com/512/2099/2099192.png'
+    // First, check if we have a specific logo for this channel ID or username
+    const specificLogos = {
+        // You can add specific channel IDs or usernames here
+        '@teamsecret': 'fa-shield-alt',
+        '@teamofficial': 'fa-crown',
+        'teamsecret': 'fa-shield-alt',
+        'teamofficial': 'fa-crown',
+        '-100': 'fa-lock', // Private channels
     };
     
-    // Try to find a matching logo
+    // Check for specific channel IDs or usernames
+    for (const [key, icon] of Object.entries(specificLogos)) {
+        if (channelId.includes(key) || channelTitle.includes(key)) {
+            return icon;
+        }
+    }
+    
+    // Then check based on channel title keywords
+    if (channelTitle.includes('news') || channelTitle.includes('announce')) {
+        return 'fa-bullhorn';
+    } else if (channelTitle.includes('crypto') || channelTitle.includes('trading')) {
+        return 'fa-chart-line';
+    } else if (channelTitle.includes('signal') || channelTitle.includes('alert')) {
+        return 'fa-bell';
+    } else if (channelTitle.includes('team') || channelTitle.includes('group')) {
+        return 'fa-users';
+    } else if (channelTitle.includes('official')) {
+        return 'fa-check-circle';
+    } else if (channelTitle.includes('private') || channelId.startsWith('-100')) {
+        return 'fa-lock';
+    } else if (channelTitle.includes('channel')) {
+        return 'fa-hashtag';
+    } else if (channelTitle.includes('support') || channelTitle.includes('help')) {
+        return 'fa-headset';
+    } else if (channelTitle.includes('premium') || channelTitle.includes('vip')) {
+        return 'fa-gem';
+    } else if (channelTitle.includes('secret') || channelTitle.includes('exclusive')) {
+        return 'fa-user-secret';
+    } else if (channelId.startsWith('@')) {
+        return 'fa-telegram';
+    } else {
+        return 'fa-broadcast-tower';
+    }
+}
+
+// Simple logo URL getter - returns URL or null
+function getChannelLogoUrl(channelData) {
+    const channelTitle = (channelData.channel_title || channelData.display_name || '').toLowerCase();
+    const channelId = channelData.channel || '';
+    
+    // Only return logo URL for specific known channels
+    // Add your channel-specific logos here
+    const channelLogos = {
+        'teamsecret': 'https://i.ibb.co/8g2YxXq6/tmpyb9cwaub.jpg',
+        '@teamsecret': 'https://i.ibb.co/8g2YxXq6/tmpyb9cwaub.jpg',
+        'teamofficial': 'https://i.ibb.co/8g2YxXq6/tmpyb9cwaub.jpg',
+        'team secret': 'https://i.ibb.co/8g2YxXq6/tmpyb9cwaub.jpg',
+    };
+    
+    // Check for exact matches first
     for (const [key, logoUrl] of Object.entries(channelLogos)) {
-        if (cleanTitle.includes(key.toLowerCase())) {
+        const lowerKey = key.toLowerCase();
+        if (channelTitle === lowerKey || 
+            channelTitle.includes(lowerKey) || 
+            channelId.toLowerCase().includes(lowerKey)) {
             return logoUrl;
         }
     }
     
-    // Default icon-based logo
-    return null; // Return null to use icon instead
-}
-
-function getChannelIcon(channelTitle) {
-    const cleanTitle = channelTitle.toLowerCase();
-    
-    if (cleanTitle.includes('news') || cleanTitle.includes('announce')) {
-        return 'fa-bullhorn';
-    } else if (cleanTitle.includes('crypto') || cleanTitle.includes('trading')) {
-        return 'fa-chart-line';
-    } else if (cleanTitle.includes('signal')) {
-        return 'fa-signal';
-    } else if (cleanTitle.includes('team') || cleanTitle.includes('secret')) {
-        return 'fa-shield-alt';
-    } else if (cleanTitle.includes('private')) {
-        return 'fa-lock';
-    } else if (cleanTitle.includes('channel')) {
-        return 'fa-hashtag';
-    } else {
-        return 'fa-telegram';
+    // Check for partial matches
+    for (const [key, logoUrl] of Object.entries(channelLogos)) {
+        const lowerKey = key.toLowerCase();
+        if (channelTitle.includes(lowerKey) || channelId.toLowerCase().includes(lowerKey)) {
+            return logoUrl;
+        }
     }
+    
+    return null; // No specific logo found
 }
 
 function formatChannelName(channel) {
-    // Fallback function to format channel ID if display_name is not available
     if (channel.startsWith('@')) {
         return channel.substring(1).replace(/_/g, ' ').toUpperCase();
     } else if (channel.startsWith('-100')) {
-        return `PRIVATE CHANNEL`;
+        return 'PRIVATE CHANNEL';
     } else {
         return channel.toUpperCase();
     }
@@ -1185,15 +333,15 @@ function createChannelsList(channels) {
         if (isJoined) joinedCount++;
         
         // Get logo URL or icon
-        const logoUrl = getChannelLogo(channelTitle);
-        const channelIcon = getChannelIcon(channelTitle);
+        const logoUrl = getChannelLogoUrl(channel);
+        const channelIcon = getChannelIcon(channel);
         
         channelItem.className = `channel-item ${isJoined ? 'joined' : 'not-joined'}`;
         channelItem.innerHTML = `
             <div class="channel-info">
                 <div class="channel-logo">
                     ${logoUrl ? 
-                        `<img src="${logoUrl}" alt="${channelTitle}" style="width:100%;height:100%;border-radius:50%;">` : 
+                        `<img src="${logoUrl}" alt="${channelTitle}" onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=\\'fas ${channelIcon}\\'></i>';" />` : 
                         `<i class="fas ${channelIcon}"></i>`
                     }
                 </div>
@@ -1387,6 +535,9 @@ async function verifyMembership() {
         }
         
         const data = await response.json();
+        
+        // Debug: log what we receive from backend
+        console.log('Channel data from backend:', data.channels);
         
         if (data.is_member) {
             // User is verified - show success

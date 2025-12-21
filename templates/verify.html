@@ -26,20 +26,20 @@
 body{
   font-family:'Rajdhani', sans-serif;
   background:#000;
-  min-height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
   color:white;
   position:relative;
+  min-height:100vh;
   padding:20px;
   overflow-x:hidden;
 }
 
-/* Animated Grid Background */
+/* Animated Grid Background - Fixed to cover entire page */
 #grid-bg{
   position:fixed;
-  inset:0;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
   background-image:
     linear-gradient(rgba(0,255,255,0.1) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0,255,255,0.1) 1px, transparent 1px);
@@ -53,18 +53,24 @@ body{
   100%{background-position:50px 50px}
 }
 
-/* Matrix Rain */
+/* Matrix Rain - Fixed to cover entire page */
 #matrix-bg{
   position:fixed;
-  inset:0;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
   z-index:-9;
   opacity:0.4;
 }
 
-/* Floating Particles */
+/* Floating Particles - Fixed to cover entire page */
 .particles{
   position:fixed;
-  inset:0;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
   z-index:-8;
   pointer-events:none;
   overflow:hidden;
@@ -90,19 +96,22 @@ body{
   }
 }
 
-/* Rotating Rings */
+/* FIXED: Rotating Rings - Position fixed to cover entire viewport */
 .ring-container{
   position:fixed;
-  inset:0;
+  top:0;
+  left:0;
+  width:100vw;
+  height:100vh;
   display:flex;
   align-items:center;
   justify-content:center;
   z-index:-7;
   pointer-events:none;
-  width:100%;
-  height:100%;
+  overflow:hidden;
 }
 
+/* Make rings larger to cover more area */
 .neon-ring{
   position:absolute;
   border-radius:50%;
@@ -110,28 +119,29 @@ body{
   filter:blur(1px);
 }
 
+/* Increased ring sizes to cover more area */
 .ring1{
-  width:min(700px, 95vw);
-  height:min(700px, 95vw);
-  border-color:rgba(0,255,255,0.3);
-  animation:spin 20s linear infinite;
-  box-shadow:0 0 40px var(--glow-cyan);
+  width:min(1200px, 150vw);
+  height:min(1200px, 150vw);
+  border-color:rgba(0,255,255,0.2);
+  animation:spin 30s linear infinite;
+  box-shadow:0 0 60px var(--glow-cyan);
 }
 
 .ring2{
-  width:min(550px, 80vw);
-  height:min(550px, 80vw);
-  border-color:rgba(184,0,255,0.3);
-  animation:spin 15s linear infinite reverse;
-  box-shadow:0 0 40px var(--glow-purple);
+  width:min(900px, 120vw);
+  height:min(900px, 120vw);
+  border-color:rgba(184,0,255,0.2);
+  animation:spin 20s linear infinite reverse;
+  box-shadow:0 0 60px var(--glow-purple);
 }
 
 .ring3{
-  width:min(400px, 60vw);
-  height:min(400px, 60vw);
-  border-color:rgba(255,0,255,0.3);
-  animation:spin 25s linear infinite;
-  box-shadow:0 0 40px rgba(255,0,255,0.5);
+  width:min(600px, 90vw);
+  height:min(600px, 90vw);
+  border-color:rgba(255,0,255,0.2);
+  animation:spin 35s linear infinite;
+  box-shadow:0 0 60px rgba(255,0,255,0.5);
 }
 
 @keyframes spin{
@@ -139,10 +149,13 @@ body{
   100%{transform:rotate(360deg)}
 }
 
-/* Radial Glow */
+/* Radial Glow - Fixed to cover entire page */
 .radial-glow{
   position:fixed;
-  inset:0;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
   background:radial-gradient(
     circle at center,
     rgba(0,255,255,0.15) 0%,
@@ -150,28 +163,28 @@ body{
     transparent 70%
   );
   z-index:-6;
-  animation:pulse-glow 4s infinite alternate ease-in-out;
+  animation:pulse-glow 6s infinite alternate ease-in-out;
 }
 
 @keyframes pulse-glow{
   0%{
-    opacity:0.5;
-    transform:scale(0.95);
+    opacity:0.4;
+    transform:scale(0.9);
   }
   100%{
     opacity:1;
-    transform:scale(1.05);
+    transform:scale(1.1);
   }
 }
 
 /* Main Container */
 .container{
-  background:linear-gradient(135deg, rgba(0,20,40,0.8) 0%, rgba(20,0,40,0.8) 100%);
+  background:linear-gradient(135deg, rgba(0,20,40,0.85) 0%, rgba(20,0,40,0.85) 100%);
   padding:clamp(30px, 4vw, 50px) clamp(25px, 4vw, 60px);
   border-radius:25px;
   border:2px solid;
   border-image:linear-gradient(135deg, var(--neon-cyan), var(--neon-purple), var(--neon-pink)) 1;
-  backdrop-filter:blur(20px);
+  backdrop-filter:blur(15px);
   text-align:center;
   position:relative;
   animation:float-container 5s ease-in-out infinite alternate;
@@ -182,7 +195,7 @@ body{
   z-index:10;
   max-width:min(700px, 95vw);
   width:100%;
-  margin:auto;
+  margin:20px auto;
   overflow:hidden;
   min-height:auto;
   display:flex;
@@ -214,7 +227,7 @@ body{
     rgba(184,0,255,0.3),
     transparent
   );
-  animation:rotate-border 6s linear infinite;
+  animation:rotate-border 8s linear infinite;
   z-index:-1;
 }
 
@@ -620,12 +633,12 @@ h1{
   display:flex;
   align-items:center;
   flex:1;
-  min-width:0; /* Prevents flex item from overflowing */
+  min-width:0;
 }
 
 .channel-details {
   flex:1;
-  min-width:0; /* Allows text to truncate properly */
+  min-width:0;
 }
 
 .channel-name {
@@ -903,6 +916,7 @@ h1{
     padding:25px 20px;
     border-radius:20px;
     max-width:95vw;
+    margin:15px auto;
   }
   
   .status{padding:0 25px}
@@ -951,6 +965,7 @@ h1{
   .container{
     padding:20px 15px;
     max-width:98vw;
+    margin:10px auto;
   }
   
   .status{
@@ -1001,6 +1016,7 @@ h1{
   .container{
     min-height:auto;
     padding:20px;
+    margin:15px auto;
   }
   
   .logo-badge{
@@ -1032,10 +1048,12 @@ h1{
 </head>
 <body>
 
+<!-- Fixed background elements that cover entire viewport -->
 <div id="grid-bg"></div>
 <canvas id='matrix-bg'></canvas>
 <div class='particles'></div>
 
+<!-- Fixed rotating rings that cover entire viewport -->
 <div class='ring-container'>
   <div class='neon-ring ring1'></div>
   <div class='neon-ring ring2'></div>
@@ -1044,6 +1062,7 @@ h1{
 
 <div class='radial-glow'></div>
 
+<!-- Main content container -->
 <div class='container'>
   <div class='logo-badge'>
     <img src='https://i.ibb.co/8g2YxXq6/tmpyb9cwaub.jpg' alt='Team Secret Logo'>

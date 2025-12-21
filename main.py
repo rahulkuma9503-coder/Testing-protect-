@@ -4,10 +4,12 @@ import uuid
 import base64
 import asyncio
 import datetime
+import io
 from typing import Optional, List, Dict, Any
 from pymongo import MongoClient
 from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.templating import Jinja2Templates
+from fastapi.responses import StreamingResponse
 
 # --- Telegram Imports ---
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, ChatMember, ChatInviteLink
@@ -275,6 +277,46 @@ async def verify_user_membership(user_id: int) -> bool:
         logger.error(f"Bot initialization error: {e}")
         return False
 
+async def get_channel_photo_url(bot, channel_id: str) -> Optional[str]:
+    """Get channel photo and return a proxied URL."""
+    try:
+        # Check database first
+        channel_data = channels_collection.find_one({"channel_id": channel_id})
+        if channel_data and channel_data.get("photo_id"):
+            # Return our proxy URL
+            return f"{os.environ.get('RENDER_EXTERNAL_URL')}/channel_photo/{channel_id}"
+        
+        # Convert channel_id to appropriate format
+        try:
+            chat_id = int(channel_id)
+        except ValueError:
+            if channel_id.startswith('@'):
+                chat_id = channel_id
+            else:
+                chat_id = f"@{channel_id}"
+        
+        # Get chat information
+        chat = await bot.get_chat(chat_id)
+        
+        if chat.photo:
+            # Store photo file_id in database
+            channels_collection.update_one(
+                {"channel_id": channel_id},
+                {"$set": {
+                    "photo_id": chat.photo.big_file_id,
+                    "last_updated": datetime.datetime.now()
+                }},
+                upsert=True
+            )
+            
+            # Return our proxy URL
+            return f"{os.environ.get('RENDER_EXTERNAL_URL')}/channel_photo/{channel_id}"
+        
+        return None
+    except Exception as e:
+        logger.error(f"Failed to get channel photo for {channel_id}: {e}")
+        return None
+
 async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
     """Get channel information including membership status, invite links, channel titles, and logos."""
     support_channels = get_support_channels()
@@ -318,14 +360,8 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                     chat_title = chat.title or format_channel_name(channel)
                     chat_username = getattr(chat, 'username', None)
                     
-                    # Get chat photo URL if available
-                    logo_url = None
-                    if chat.photo:
-                        try:
-                            photo_file = await bot.get_file(chat.photo.big_file_id)
-                            logo_url = f"https://api.telegram.org/file/bot{bot_token}/{photo_file.file_path}"
-                        except Exception as e:
-                            logger.error(f"Failed to get photo for {channel}: {e}")
+                    # Get channel photo URL (using our proxy)
+                    logo_url = await get_channel_photo_url(bot, channel)
                     
                     # Get or create invite link
                     invite_link = None
@@ -350,13 +386,12 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                             else:
                                 invite_link = f"https://t.me/{channel}"
                     
-                    # Update channel title in database
+                    # Update channel info in database
                     channels_collection.update_one(
                         {"channel_id": channel},
                         {"$set": {
                             "title": chat_title,
                             "username": chat_username,
-                            "logo_url": logo_url,
                             "last_updated": datetime.datetime.now()
                         }},
                         upsert=True
@@ -365,10 +400,6 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                 except Exception as e:
                     logger.error(f"Failed to get chat info for {channel}: {e}")
                     chat_title = format_channel_name(channel)
-                    # Try to get logo from database
-                    channel_data = channels_collection.find_one({"channel_id": channel})
-                    logo_url = channel_data.get("logo_url") if channel_data else None
-                    
                     # Generate fallback link
                     if channel.startswith('-100'):
                         invite_link = f"https://t.me/c/{channel[4:]}"
@@ -388,11 +419,11 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                 if not is_channel_member:
                     is_member = False
                 
-                # Try to get logo URL from database if not already set
+                # Try to get existing photo URL from database
                 if not logo_url:
                     channel_data = channels_collection.find_one({"channel_id": channel})
-                    if channel_data and channel_data.get("logo_url"):
-                        logo_url = channel_data["logo_url"]
+                    if channel_data and channel_data.get("photo_id"):
+                        logo_url = f"{os.environ.get('RENDER_EXTERNAL_URL')}/channel_photo/{channel}"
                 
                 channels_info.append({
                     "channel": channel,
@@ -408,9 +439,6 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                 logger.error(f"Error processing channel {channel}: {e}")
                 # Fallback with basic info
                 chat_title = format_channel_name(channel)
-                # Try to get logo from database
-                channel_data = channels_collection.find_one({"channel_id": channel})
-                logo_url = channel_data.get("logo_url") if channel_data else None
                 
                 channels_info.append({
                     "channel": channel,
@@ -418,7 +446,7 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                     "invite_link": f"https://t.me/{channel[1:]}" if channel.startswith('@') else f"https://t.me/c/{channel[4:]}" if channel.startswith('-100') else f"https://t.me/{channel}",
                     "is_member": False,
                     "display_name": chat_title,
-                    "logo_url": logo_url
+                    "logo_url": None
                 })
                 is_member = False
         
@@ -438,9 +466,6 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
         fallback_channels = []
         for channel in support_channels:
             chat_title = format_channel_name(channel)
-            # Try to get logo from database
-            channel_data = channels_collection.find_one({"channel_id": channel})
-            logo_url = channel_data.get("logo_url") if channel_data else None
             
             fallback_channels.append({
                 "channel": channel,
@@ -448,7 +473,7 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                 "invite_link": f"https://t.me/{channel[1:]}" if channel.startswith('@') else f"https://t.me/c/{channel[4:]}" if channel.startswith('-100') else f"https://t.me/{channel}",
                 "is_member": False,
                 "display_name": chat_title,
-                "logo_url": logo_url
+                "logo_url": None
             })
         
         return {
@@ -457,65 +482,6 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
             "channel_count": len(support_channels),
             "invite_link": fallback_channels[0]["invite_link"] if fallback_channels else None
         }
-
-async def update_channel_logos():
-    """Update channel logos in the database."""
-    support_channels = get_support_channels()
-    if not support_channels:
-        return
-    
-    from telegram import Bot
-    
-    try:
-        bot_token = os.environ.get("TELEGRAM_TOKEN")
-        if not bot_token:
-            return
-        
-        bot = Bot(token=bot_token)
-        
-        for channel in support_channels:
-            try:
-                try:
-                    chat_id = int(channel)
-                except ValueError:
-                    if channel.startswith('@'):
-                        chat_id = channel
-                    else:
-                        chat_id = f"@{channel}"
-                
-                # Get chat info
-                chat = await bot.get_chat(chat_id)
-                chat_title = chat.title or format_channel_name(channel)
-                chat_username = getattr(chat, 'username', None)
-                
-                # Get chat photo URL if available
-                logo_url = None
-                if chat.photo:
-                    try:
-                        photo_file = await bot.get_file(chat.photo.big_file_id)
-                        logo_url = f"https://api.telegram.org/file/bot{bot_token}/{photo_file.file_path}"
-                    except Exception as e:
-                        logger.error(f"Failed to get photo for {channel}: {e}")
-                
-                # Update in database
-                channels_collection.update_one(
-                    {"channel_id": channel},
-                    {"$set": {
-                        "title": chat_title,
-                        "username": chat_username,
-                        "logo_url": logo_url,
-                        "last_updated": datetime.datetime.now()
-                    }},
-                    upsert=True
-                )
-                
-                logger.info(f"Updated channel info for {channel}")
-                
-            except Exception as e:
-                logger.error(f"Failed to update channel {channel}: {e}")
-                
-    except Exception as e:
-        logger.error(f"Failed to update channel logos: {e}")
 
 # --- Telegram Bot Logic ---
 telegram_bot_app = Application.builder().token(os.environ.get("TELEGRAM_TOKEN")).build()
@@ -1297,6 +1263,37 @@ async def check_membership_api(token: str, user_id: int):
         "channel_count": channel_info["channel_count"],
         "invite_link": channel_info["invite_link"]
     }
+
+@app.get("/channel_photo/{channel_id}")
+async def get_channel_photo(channel_id: str):
+    """Proxy endpoint to serve channel photos."""
+    try:
+        # Get channel data from database
+        channel_data = channels_collection.find_one({"channel_id": channel_id})
+        if not channel_data or not channel_data.get("photo_id"):
+            raise HTTPException(status_code=404, detail="Channel photo not found")
+        
+        # Get bot instance
+        from telegram import Bot
+        bot_token = os.environ.get("TELEGRAM_TOKEN")
+        bot = Bot(token=bot_token)
+        
+        # Download the photo
+        photo_file = await bot.get_file(channel_data["photo_id"])
+        photo_bytes = await photo_file.download_as_bytearray()
+        
+        # Return as image
+        return StreamingResponse(
+            io.BytesIO(photo_bytes),
+            media_type="image/jpeg",
+            headers={
+                "Cache-Control": "public, max-age=86400",
+                "Content-Disposition": f"inline; filename=channel_{channel_id}.jpg"
+            }
+        )
+    except Exception as e:
+        logger.error(f"Failed to get channel photo for {channel_id}: {e}")
+        raise HTTPException(status_code=404, detail="Channel photo not found")
 
 @app.get("/join")
 async def join_page(request: Request, token: str, user_id: int):

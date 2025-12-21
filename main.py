@@ -4,7 +4,6 @@ import uuid
 import base64
 import asyncio
 import datetime
-import hashlib
 from typing import Optional, List, Dict, Any
 from pymongo import MongoClient
 from fastapi import FastAPI, Request, Response, HTTPException
@@ -149,25 +148,12 @@ def format_channel_name(channel_id: str) -> str:
         if channel_data and channel_data.get("title"):
             return channel_data["title"]
         else:
-            return f"Private Channel"
+            return f"Private Channel ({channel_id[-6:]})"
     elif channel_id.startswith('-'):
         # Other private chat
-        return f"Private Chat"
+        return f"Chat {channel_id}"
     else:
         return channel_id
-
-def generate_channel_color(channel_name: str) -> str:
-    """Generate a consistent color for a channel based on its name."""
-    # Create a hash from the channel name
-    hash_obj = hashlib.md5(channel_name.encode())
-    hash_int = int(hash_obj.hexdigest()[:8], 16)
-    
-    # Generate HSL color values
-    hue = hash_int % 360
-    saturation = 70 + (hash_int % 30)  # 70-100%
-    lightness = 40 + (hash_int % 30)   # 40-70%
-    
-    return f"hsl({hue}, {saturation}%, {lightness}%)"
 
 async def get_channel_title(bot, channel_id: str) -> str:
     """Get the actual title/name of a channel."""
@@ -290,7 +276,7 @@ async def verify_user_membership(user_id: int) -> bool:
         return False
 
 async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
-    """Get channel information including membership status and invite links WITH CHANNEL TITLES."""
+    """Get channel information including membership status, invite links, channel titles, and logos."""
     support_channels = get_support_channels()
     if not support_channels:
         return {
@@ -332,6 +318,15 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                     chat_title = chat.title or format_channel_name(channel)
                     chat_username = getattr(chat, 'username', None)
                     
+                    # Get chat photo URL if available
+                    logo_url = None
+                    if chat.photo:
+                        try:
+                            photo_file = await bot.get_file(chat.photo.big_file_id)
+                            logo_url = f"https://api.telegram.org/file/bot{bot_token}/{photo_file.file_path}"
+                        except Exception as e:
+                            logger.error(f"Failed to get photo for {channel}: {e}")
+                    
                     # Get or create invite link
                     invite_link = None
                     if chat.invite_link:
@@ -361,6 +356,7 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                         {"$set": {
                             "title": chat_title,
                             "username": chat_username,
+                            "logo_url": logo_url,
                             "last_updated": datetime.datetime.now()
                         }},
                         upsert=True
@@ -369,6 +365,10 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                 except Exception as e:
                     logger.error(f"Failed to get chat info for {channel}: {e}")
                     chat_title = format_channel_name(channel)
+                    # Try to get logo from database
+                    channel_data = channels_collection.find_one({"channel_id": channel})
+                    logo_url = channel_data.get("logo_url") if channel_data else None
+                    
                     # Generate fallback link
                     if channel.startswith('-100'):
                         invite_link = f"https://t.me/c/{channel[4:]}"
@@ -388,8 +388,11 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                 if not is_channel_member:
                     is_member = False
                 
-                # Generate color for the channel logo
-                channel_color = generate_channel_color(chat_title)
+                # Try to get logo URL from database if not already set
+                if not logo_url:
+                    channel_data = channels_collection.find_one({"channel_id": channel})
+                    if channel_data and channel_data.get("logo_url"):
+                        logo_url = channel_data["logo_url"]
                 
                 channels_info.append({
                     "channel": channel,
@@ -398,15 +401,16 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                     "is_member": is_channel_member,
                     "display_name": chat_title,  # Use actual title for display
                     "username": chat_username if 'chat_username' in locals() else None,
-                    "color": channel_color,  # For frontend logo generation
-                    "initial": chat_title[0].upper() if chat_title else "T"  # First letter for logo
+                    "logo_url": logo_url  # Add logo URL to the response
                 })
                 
             except Exception as e:
                 logger.error(f"Error processing channel {channel}: {e}")
                 # Fallback with basic info
                 chat_title = format_channel_name(channel)
-                channel_color = generate_channel_color(chat_title)
+                # Try to get logo from database
+                channel_data = channels_collection.find_one({"channel_id": channel})
+                logo_url = channel_data.get("logo_url") if channel_data else None
                 
                 channels_info.append({
                     "channel": channel,
@@ -414,8 +418,7 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                     "invite_link": f"https://t.me/{channel[1:]}" if channel.startswith('@') else f"https://t.me/c/{channel[4:]}" if channel.startswith('-100') else f"https://t.me/{channel}",
                     "is_member": False,
                     "display_name": chat_title,
-                    "color": channel_color,
-                    "initial": chat_title[0].upper() if chat_title else "T"
+                    "logo_url": logo_url
                 })
                 is_member = False
         
@@ -435,7 +438,9 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
         fallback_channels = []
         for channel in support_channels:
             chat_title = format_channel_name(channel)
-            channel_color = generate_channel_color(chat_title)
+            # Try to get logo from database
+            channel_data = channels_collection.find_one({"channel_id": channel})
+            logo_url = channel_data.get("logo_url") if channel_data else None
             
             fallback_channels.append({
                 "channel": channel,
@@ -443,8 +448,7 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                 "invite_link": f"https://t.me/{channel[1:]}" if channel.startswith('@') else f"https://t.me/c/{channel[4:]}" if channel.startswith('-100') else f"https://t.me/{channel}",
                 "is_member": False,
                 "display_name": chat_title,
-                "color": channel_color,
-                "initial": chat_title[0].upper() if chat_title else "T"
+                "logo_url": logo_url
             })
         
         return {
@@ -453,6 +457,65 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
             "channel_count": len(support_channels),
             "invite_link": fallback_channels[0]["invite_link"] if fallback_channels else None
         }
+
+async def update_channel_logos():
+    """Update channel logos in the database."""
+    support_channels = get_support_channels()
+    if not support_channels:
+        return
+    
+    from telegram import Bot
+    
+    try:
+        bot_token = os.environ.get("TELEGRAM_TOKEN")
+        if not bot_token:
+            return
+        
+        bot = Bot(token=bot_token)
+        
+        for channel in support_channels:
+            try:
+                try:
+                    chat_id = int(channel)
+                except ValueError:
+                    if channel.startswith('@'):
+                        chat_id = channel
+                    else:
+                        chat_id = f"@{channel}"
+                
+                # Get chat info
+                chat = await bot.get_chat(chat_id)
+                chat_title = chat.title or format_channel_name(channel)
+                chat_username = getattr(chat, 'username', None)
+                
+                # Get chat photo URL if available
+                logo_url = None
+                if chat.photo:
+                    try:
+                        photo_file = await bot.get_file(chat.photo.big_file_id)
+                        logo_url = f"https://api.telegram.org/file/bot{bot_token}/{photo_file.file_path}"
+                    except Exception as e:
+                        logger.error(f"Failed to get photo for {channel}: {e}")
+                
+                # Update in database
+                channels_collection.update_one(
+                    {"channel_id": channel},
+                    {"$set": {
+                        "title": chat_title,
+                        "username": chat_username,
+                        "logo_url": logo_url,
+                        "last_updated": datetime.datetime.now()
+                    }},
+                    upsert=True
+                )
+                
+                logger.info(f"Updated channel info for {channel}")
+                
+            except Exception as e:
+                logger.error(f"Failed to update channel {channel}: {e}")
+                
+    except Exception as e:
+        logger.error(f"Failed to update channel logos: {e}")
 
 # --- Telegram Bot Logic ---
 telegram_bot_app = Application.builder().token(os.environ.get("TELEGRAM_TOKEN")).build()
@@ -1225,12 +1288,12 @@ async def check_membership_api(token: str, user_id: int):
     if not link_data:
         raise HTTPException(status_code=404, detail="Link not found")
     
-    # Get channel membership info WITH CHANNEL TITLES
+    # Get channel membership info WITH CHANNEL TITLES AND LOGOS
     channel_info = await get_channel_info_for_user(user_id)
     
     return {
         "is_member": channel_info["is_member"],
-        "channels": channel_info["channels"],  # Now includes channel_title, color, and initial
+        "channels": channel_info["channels"],  # Now includes channel_title and logo_url
         "channel_count": channel_info["channel_count"],
         "invite_link": channel_info["invite_link"]
     }

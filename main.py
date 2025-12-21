@@ -126,6 +126,57 @@ async def get_channel_invite_link(context: ContextTypes.DEFAULT_TYPE, channel_id
         else:
             return f"https://t.me/{channel_id}"
 
+async def get_channel_photo_url(bot, channel_id: str) -> Optional[str]:
+    """Get the channel's profile photo URL."""
+    try:
+        # Convert channel_id to appropriate format
+        try:
+            chat_id = int(channel_id)
+        except ValueError:
+            if channel_id.startswith('@'):
+                chat_id = channel_id
+            else:
+                chat_id = f"@{channel_id}"
+        
+        # Get chat information
+        chat = await bot.get_chat(chat_id)
+        
+        # Check if chat has a photo
+        if chat.photo:
+            # Get the photo file
+            photo_file = await bot.get_file(chat.photo.small_file_id)
+            
+            # Construct the photo URL
+            photo_url = f"https://api.telegram.org/file/bot{bot.token}/{photo_file.file_path}"
+            
+            # Update in database
+            channels_collection.update_one(
+                {"channel_id": channel_id},
+                {"$set": {
+                    "photo_url": photo_url,
+                    "photo_updated": datetime.datetime.now()
+                }},
+                upsert=True
+            )
+            
+            logger.info(f"✅ Got channel photo URL for {channel_id}")
+            return photo_url
+        else:
+            # No photo available
+            channels_collection.update_one(
+                {"channel_id": channel_id},
+                {"$set": {
+                    "photo_url": None,
+                    "photo_updated": datetime.datetime.now()
+                }},
+                upsert=True
+            )
+            return None
+            
+    except Exception as e:
+        logger.error(f"❌ Failed to get channel photo for {channel_id}: {e}")
+        return None
+
 def get_support_channels() -> List[str]:
     """Get list of support channels from environment variable."""
     support_channels_str = os.environ.get("SUPPORT_CHANNELS", "").strip()
@@ -276,7 +327,7 @@ async def verify_user_membership(user_id: int) -> bool:
         return False
 
 async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
-    """Get channel information including membership status and invite links WITH CHANNEL TITLES."""
+    """Get channel information including membership status, invite links, titles, and photos."""
     support_channels = get_support_channels()
     if not support_channels:
         return {
@@ -312,6 +363,9 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                     else:
                         chat_id = f"@{channel}"
                 
+                # Get channel data from database first
+                channel_data = channels_collection.find_one({"channel_id": channel})
+                
                 # Get chat info and title
                 try:
                     chat = await bot.get_chat(chat_id)
@@ -341,12 +395,25 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                             else:
                                 invite_link = f"https://t.me/{channel}"
                     
-                    # Update channel title in database
+                    # Get channel photo URL
+                    photo_url = None
+                    if channel_data and channel_data.get("photo_url"):
+                        # Check if photo was updated recently (within 7 days)
+                        if channel_data.get("photo_updated") and \
+                           (datetime.datetime.now() - channel_data["photo_updated"]).days < 7:
+                            photo_url = channel_data["photo_url"]
+                    
+                    if not photo_url:
+                        # Try to get fresh photo
+                        photo_url = await get_channel_photo_url(bot, channel)
+                    
+                    # Update channel info in database
                     channels_collection.update_one(
                         {"channel_id": channel},
                         {"$set": {
                             "title": chat_title,
                             "username": chat_username,
+                            "invite_link": invite_link,
                             "last_updated": datetime.datetime.now()
                         }},
                         upsert=True
@@ -362,6 +429,7 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                         invite_link = f"https://t.me/{channel[1:]}"
                     else:
                         invite_link = f"https://t.me/{channel}"
+                    photo_url = None
                 
                 # Check membership
                 try:
@@ -380,7 +448,9 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                     "invite_link": invite_link,
                     "is_member": is_channel_member,
                     "display_name": chat_title,  # Use actual title for display
-                    "username": chat_username if 'chat_username' in locals() else None
+                    "username": chat_username if 'chat_username' in locals() else None,
+                    "photo_url": photo_url,  # Channel profile photo URL
+                    "has_photo": photo_url is not None  # Boolean for frontend
                 })
                 
             except Exception as e:
@@ -392,7 +462,9 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                     "channel_title": chat_title,
                     "invite_link": f"https://t.me/{channel[1:]}" if channel.startswith('@') else f"https://t.me/c/{channel[4:]}" if channel.startswith('-100') else f"https://t.me/{channel}",
                     "is_member": False,
-                    "display_name": chat_title
+                    "display_name": chat_title,
+                    "photo_url": None,
+                    "has_photo": False
                 })
                 is_member = False
         
@@ -417,7 +489,9 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                 "channel_title": chat_title,
                 "invite_link": f"https://t.me/{channel[1:]}" if channel.startswith('@') else f"https://t.me/c/{channel[4:]}" if channel.startswith('-100') else f"https://t.me/{channel}",
                 "is_member": False,
-                "display_name": chat_title
+                "display_name": chat_title,
+                "photo_url": None,
+                "has_photo": False
             })
         
         return {
@@ -1144,25 +1218,24 @@ async def on_startup():
     bot_info = await telegram_bot_app.bot.get_me()
     logger.info(f"Bot: @{bot_info.username}")
     
-    # Test channel link generation and get channel titles
+    # Pre-load channel photos and info
     support_channels = get_support_channels()
     if support_channels:
+        logger.info(f"Pre-loading info for {len(support_channels)} support channels...")
         for channel in support_channels:
             try:
-                invite_link = await get_channel_invite_link(telegram_bot_app, channel)
-                # Try to get channel title
-                try:
-                    if channel.startswith('@'):
-                        chat_id = channel
-                    else:
-                        chat_id = int(channel)
-                    
-                    chat = await telegram_bot_app.bot.get_chat(chat_id)
-                    logger.info(f"Support channel: {chat.title or channel} - Invite: {invite_link}")
-                except:
-                    logger.info(f"Support channel: {channel} - Invite: {invite_link}")
+                # Get channel title
+                channel_title = await get_channel_title(telegram_bot_app.bot, channel)
+                
+                # Try to get channel photo
+                photo_url = await get_channel_photo_url(telegram_bot_app.bot, channel)
+                
+                if photo_url:
+                    logger.info(f"✅ Loaded channel photo for: {channel_title}")
+                else:
+                    logger.info(f"⚠️ No photo available for: {channel_title}")
             except Exception as e:
-                logger.error(f"Failed to generate channel link for {channel}: {e}")
+                logger.error(f"Failed to pre-load channel info for {channel}: {e}")
 
 @app.on_event("shutdown")
 async def on_shutdown():
@@ -1198,12 +1271,12 @@ async def check_membership_api(token: str, user_id: int):
     if not link_data:
         raise HTTPException(status_code=404, detail="Link not found")
     
-    # Get channel membership info WITH CHANNEL TITLES
+    # Get channel membership info WITH CHANNEL TITLES AND PHOTOS
     channel_info = await get_channel_info_for_user(user_id)
     
     return {
         "is_member": channel_info["is_member"],
-        "channels": channel_info["channels"],  # Now includes channel_title
+        "channels": channel_info["channels"],  # Now includes channel_title and photo_url
         "channel_count": channel_info["channel_count"],
         "invite_link": channel_info["invite_link"]
     }

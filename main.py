@@ -4,12 +4,10 @@ import uuid
 import base64
 import asyncio
 import datetime
-import io
 from typing import Optional, List, Dict, Any
 from pymongo import MongoClient
 from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import StreamingResponse
 
 # --- Telegram Imports ---
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, ChatMember, ChatInviteLink
@@ -488,6 +486,12 @@ telegram_bot_app = Application.builder().token(os.environ.get("TELEGRAM_TOKEN"))
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handles the /start command."""
+    # Show typing action
+    await context.bot.send_chat_action(
+        chat_id=update.effective_chat.id, 
+        action="typing"
+    )
+    
     user_id = update.effective_user.id
     
     # Store user
@@ -599,28 +603,11 @@ I help you keep your channel links safe & secure.
 • 🛡️ Anti-Forward Protection
 • 🎯 Easy to use UI""".format(username=user_name)
     
-    # Create keyboard with support channel button
+    # Create keyboard WITHOUT support channel buttons
     keyboard = []
-    
-    support_channels = get_support_channels()
-    if support_channels:
-        # Get channel info and create individual buttons
-        channel_info = await get_channel_info_for_user(user_id)
-        
-        # Add individual channel buttons (split into rows of 2)
-        for i in range(0, len(channel_info["channels"]), 2):
-            row_buttons = []
-            for j in range(2):
-                if i + j < len(channel_info["channels"]):
-                    channel = channel_info["channels"][i + j]
-                    button_text = f"🌟 {channel['display_name'][:15]}"  # Limit text length
-                    row_buttons.append(InlineKeyboardButton(button_text, url=channel["invite_link"]))
-            if row_buttons:
-                keyboard.append(row_buttons)
-    
     keyboard.append([InlineKeyboardButton("🚀 Create Protected Link", callback_data="create_link")])
     
-    reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
+    reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(welcome_msg, reply_markup=reply_markup)
 
@@ -628,6 +615,13 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     """Handle button callbacks."""
     query = update.callback_query
     await query.answer()
+    
+    # Show typing action for certain callbacks
+    if query.data in ["check_join", "create_link", "confirm_broadcast"] or query.data.startswith("check_join_") or query.data.startswith("revoke_"):
+        await context.bot.send_chat_action(
+            chat_id=update.effective_chat.id, 
+            action="typing"
+        )
     
     if query.data == "check_join":
         if await check_channel_membership(query.from_user.id, context):
@@ -683,6 +677,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def protect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Create protected link for ANY Telegram link (group or channel)."""
+    # Show typing action
+    await context.bot.send_chat_action(
+        chat_id=update.effective_chat.id, 
+        action="typing"
+    )
+    
     # Check channel membership
     support_channels = get_support_channels()
     if support_channels and not await check_channel_membership(update.effective_user.id, context):
@@ -782,6 +782,12 @@ async def protect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def revoke_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Revoke a link."""
+    # Show typing action
+    await context.bot.send_chat_action(
+        chat_id=update.effective_chat.id, 
+        action="typing"
+    )
+    
     # Check channel membership
     support_channels = get_support_channels()
     if support_channels and not await check_channel_membership(update.effective_user.id, context):
@@ -931,6 +937,12 @@ async def handle_revoke_link(update: Update, context: ContextTypes.DEFAULT_TYPE,
 
 async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Admin broadcast."""
+    # Show typing action
+    await context.bot.send_chat_action(
+        chat_id=update.effective_chat.id, 
+        action="typing"
+    )
+    
     admin_id = int(os.environ.get("ADMIN_ID", 0))
     if update.effective_user.id != admin_id:
         await update.message.reply_text(
@@ -1026,6 +1038,12 @@ async def handle_broadcast_confirmation(update: Update, context: ContextTypes.DE
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show stats."""
+    # Show typing action
+    await context.bot.send_chat_action(
+        chat_id=update.effective_chat.id, 
+        action="typing"
+    )
+    
     admin_id = int(os.environ.get("ADMIN_ID", 0))
     if update.effective_user.id != admin_id:
         await update.message.reply_text(
@@ -1071,6 +1089,12 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show help."""
+    # Show typing action
+    await context.bot.send_chat_action(
+        chat_id=update.effective_chat.id, 
+        action="typing"
+    )
+    
     user_id = update.effective_user.id
     
     # Check channel membership
@@ -1105,26 +1129,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
         return
     
-    keyboard = []
-    
-    support_channels = get_support_channels()
-    if support_channels:
-        # Get channel info and create individual buttons
-        channel_info = await get_channel_info_for_user(user_id)
-        
-        # Add individual channel buttons (split into rows of 2)
-        for i in range(0, len(channel_info["channels"]), 2):
-            row_buttons = []
-            for j in range(2):
-                if i + j < len(channel_info["channels"]):
-                    channel = channel_info["channels"][i + j]
-                    button_text = f"🌟 {channel['display_name'][:15]}"  # Limit text length
-                    row_buttons.append(InlineKeyboardButton(button_text, url=channel["invite_link"]))
-            if row_buttons:
-                keyboard.append(row_buttons)
-    
-    reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
-    
+    # Show help WITHOUT channel buttons
     await update.message.reply_text(
         "🛡️ *LinkShield Pro - Help Center*\n\n"
         "✨ *What I Can Protect:*\n"
@@ -1145,9 +1150,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "💡 *Pro Tips:*\n"
         "• Works with any t.me link\n"
         "• Monitor link analytics\n"
-        "• Revoke unused links\n"
-        "• Join our support channels",
-        reply_markup=reply_markup,
+        "• Revoke unused links",
         parse_mode=ParseMode.MARKDOWN
     )
 
@@ -1283,6 +1286,8 @@ async def get_channel_photo(channel_id: str):
         photo_bytes = await photo_file.download_as_bytearray()
         
         # Return as image
+        import io
+        from fastapi.responses import StreamingResponse
         return StreamingResponse(
             io.BytesIO(photo_bytes),
             media_type="image/jpeg",

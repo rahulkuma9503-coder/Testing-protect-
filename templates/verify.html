@@ -50,7 +50,7 @@ body{
 
 @keyframes gridMove{
   0%{background-position:0 0}
-  100%{background-position:50px 50px}
+  100%{background-position:100px 100px}
 }
 
 /* Matrix Rain - Fixed to cover entire page */
@@ -96,7 +96,7 @@ body{
   }
 }
 
-/* FIXED: Rotating Rings - Position fixed to cover entire viewport */
+/* FIXED: Rotating Rings - Updated to cover entire viewport */
 .ring-container{
   position:fixed;
   top:0;
@@ -108,10 +108,10 @@ body{
   justify-content:center;
   z-index:-7;
   pointer-events:none;
-  overflow:hidden;
+  overflow:visible; /* Changed from hidden to visible */
 }
 
-/* Make rings larger to cover more area */
+/* Updated ring sizes to use vmax units for better coverage */
 .neon-ring{
   position:absolute;
   border-radius:50%;
@@ -119,34 +119,46 @@ body{
   filter:blur(1px);
 }
 
-/* Increased ring sizes to cover more area */
+/* Use vmax units to ensure coverage on all screen sizes */
 .ring1{
-  width:min(1200px, 150vw);
-  height:min(1200px, 150vw);
+  width:120vmax;
+  height:120vmax;
   border-color:rgba(0,255,255,0.2);
   animation:spin 30s linear infinite;
   box-shadow:0 0 60px var(--glow-cyan);
+  /* Position to center */
+  top:50%;
+  left:50%;
+  transform:translate(-50%, -50%);
 }
 
 .ring2{
-  width:min(900px, 120vw);
-  height:min(900px, 120vw);
+  width:100vmax;
+  height:100vmax;
   border-color:rgba(184,0,255,0.2);
   animation:spin 20s linear infinite reverse;
   box-shadow:0 0 60px var(--glow-purple);
+  /* Position to center */
+  top:50%;
+  left:50%;
+  transform:translate(-50%, -50%);
 }
 
 .ring3{
-  width:min(600px, 90vw);
-  height:min(600px, 90vw);
+  width:80vmax;
+  height:80vmax;
   border-color:rgba(255,0,255,0.2);
   animation:spin 35s linear infinite;
   box-shadow:0 0 60px rgba(255,0,255,0.5);
+  /* Position to center */
+  top:50%;
+  left:50%;
+  transform:translate(-50%, -50%);
 }
 
 @keyframes spin{
-  0%{transform:rotate(0deg)}
-  100%{transform:rotate(360deg)}
+  0%{transform:translate(-50%, -50%) rotate(0deg)}
+  100%{transform:translate(-50%, -50%) rotate(360deg)}
 }
 
 /* Radial Glow - Fixed to cover entire page */
@@ -192,7 +204,7 @@ body{
     0 0 60px rgba(0,255,255,0.4),
     0 0 100px rgba(184,0,255,0.3),
     inset 0 0 40px rgba(0,255,255,0.1);
-  z-index:10;
+  z-index:100; /* Increased from 10 to 100 */
   max-width:min(700px, 95vw);
   width:100%;
   margin:20px auto;

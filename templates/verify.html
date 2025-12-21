@@ -563,7 +563,6 @@ h1{
   object-fit: cover;
   border: 2px solid rgba(0, 255, 255, 0.3);
   box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
-  flex-shrink: 0;
 }
 
 .channel-info {
@@ -1099,136 +1098,48 @@ function updateProgress(joinedCount, totalCount) {
     }
 }
 
-// ================================
-// IMGBB LOGO GENERATION FUNCTIONS
-// ================================
-
-const IMGBB_API_KEY = '568956636b3d82758932529334d3bad3';
-
-// Generate a simple logo with channel initial
-function generateChannelLogo(channelName) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 200;
-    canvas.height = 200;
-    const ctx = canvas.getContext('2d');
-    
-    // Extract first letter or use default
-    const firstLetter = channelName ? channelName.charAt(0).toUpperCase() : 'T';
-    
-    // Generate consistent color based on channel name
-    let hash = 0;
-    for (let i = 0; i < channelName.length; i++) {
-        hash = channelName.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const hue = Math.abs(hash) % 360;
-    
-    // Draw background with gradient
-    const gradient = ctx.createRadialGradient(100, 100, 0, 100, 100, 100);
-    gradient.addColorStop(0, `hsl(${hue}, 80%, 60%)`);
-    gradient.addColorStop(1, `hsl(${hue}, 90%, 40%)`);
-    
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 200, 200);
-    
-    // Add some noise for texture
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-    for (let i = 0; i < 50; i++) {
-        const x = Math.random() * 200;
-        const y = Math.random() * 200;
-        const size = Math.random() * 3;
-        ctx.fillRect(x, y, size, size);
+function getChannelLogo(channel) {
+    // Use the logo_url provided by the backend if available
+    if (channel.logo_url) {
+        return channel.logo_url;
     }
     
-    // Draw the letter
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 80px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(firstLetter, 100, 100);
+    // Fallback to default Telegram logo
+    let logo = 'https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg';
     
-    // Add a subtle border
-    ctx.strokeStyle = `hsl(${hue}, 100%, 80%)`;
-    ctx.lineWidth = 4;
-    ctx.strokeRect(10, 10, 180, 180);
+    // Custom logos for specific channel names (as fallback)
+    const channelLogos = {
+        'team secret': 'https://i.ibb.co/8g2YxXq6/tmpyb9cwaub.jpg',
+        'teamsecret': 'https://i.ibb.co/8g2YxXq6/tmpyb9cwaub.jpg',
+        'crypto': 'https://cdn-icons-png.flaticon.com/512/6001/6001536.png',
+        'news': 'https://cdn-icons-png.flaticon.com/512/2965/2965879.png',
+        'announcements': 'https://cdn-icons-png.flaticon.com/512/3095/3095583.png'
+    };
     
-    return canvas.toDataURL('image/png');
-}
-
-// Upload logo to imgBB and get URL
-async function uploadLogoToImgBB(logoDataUrl, channelName) {
-    try {
-        // Convert data URL to blob
-        const response = await fetch(logoDataUrl);
-        const blob = await response.blob();
-        
-        // Create form data
-        const formData = new FormData();
-        formData.append('image', blob, `channel_logo_${channelName.replace(/[^a-z0-9]/gi, '_')}.png`);
-        
-        // Upload to imgBB
-        const uploadResponse = await fetch(
-            `https://api.imgbb.com/1/upload?expiration=600&key=${IMGBB_API_KEY}`,
-            {
-                method: 'POST',
-                body: formData
-            }
-        );
-        
-        const result = await uploadResponse.json();
-        
-        if (result.success) {
-            // Return the direct image URL
-            return result.data.image.url;
-        } else {
-            console.error('ImgBB upload failed:', result.error?.message || 'Unknown error');
-            // Fallback to data URL if imgBB fails
-            return logoDataUrl;
+    // Check if we have a custom logo for this channel by name
+    const channelTitle = channel.channel_title || channel.display_name || '';
+    const channelLower = channelTitle.toLowerCase();
+    for (const [key, logoUrl] of Object.entries(channelLogos)) {
+        if (channelLower.includes(key)) {
+            return logoUrl;
         }
-    } catch (error) {
-        console.error('Error uploading to ImgBB:', error);
-        // Fallback to data URL
-        return logoDataUrl;
-    }
-}
-
-// Cache for generated logos to avoid re-uploading
-const logoCache = new Map();
-
-// Get logo URL for a channel (with caching)
-async function getChannelLogoUrl(channelData) {
-    const channelTitle = channelData.channel_title || channelData.display_name || formatChannelName(channelData.channel);
-    const channelId = channelData.channel || '';
-    
-    // Create cache key
-    const cacheKey = `${channelId}_${channelTitle}`;
-    
-    // Check cache first
-    if (logoCache.has(cacheKey)) {
-        return logoCache.get(cacheKey);
     }
     
-    // Generate and upload logo
-    const logoDataUrl = generateChannelLogo(channelTitle);
-    const logoUrl = await uploadLogoToImgBB(logoDataUrl, channelTitle);
-    
-    // Cache the result
-    logoCache.set(cacheKey, logoUrl);
-    
-    return logoUrl;
+    return logo;
 }
 
 function formatChannelName(channel) {
+    // Fallback function to format channel ID if display_name is not available
     if (channel.startsWith('@')) {
         return channel.substring(1).replace(/_/g, ' ').toUpperCase();
     } else if (channel.startsWith('-100')) {
-        return 'PRIVATE CHANNEL';
+        return `PRIVATE CHANNEL (${channel.slice(-6)})`;
     } else {
         return channel.toUpperCase();
     }
 }
 
-// Create channels list with generated logos
-async function createChannelsList(channels) {
+function createChannelsList(channels) {
     channelsList.innerHTML = '';
     
     if (!channels || channels.length === 0) {
@@ -1238,21 +1149,18 @@ async function createChannelsList(channels) {
     
     let joinedCount = 0;
     
-    // Process channels in parallel for better performance
-    const channelPromises = channels.map(async (channel, index) => {
+    channels.forEach((channel, index) => {
         const channelItem = document.createElement('div');
+        // Use channel_title from backend, fallback to display_name, then format channel ID
         const channelTitle = channel.channel_title || channel.display_name || formatChannelName(channel.channel);
         const isJoined = channel.is_member || false;
         
         if (isJoined) joinedCount++;
         
-        // Get logo URL (this will generate and upload if needed)
-        const logoUrl = await getChannelLogoUrl(channel);
-        
         channelItem.className = `channel-item ${isJoined ? 'joined' : 'not-joined'}`;
         channelItem.innerHTML = `
             <div class="channel-info">
-                <img src="${logoUrl}" alt="${channelTitle}" class="channel-logo" loading="lazy">
+                <img src="${getChannelLogo(channel)}" alt="${channelTitle}" class="channel-logo">
                 <div class="channel-details">
                     <div class="channel-name">${channelTitle}</div>
                     <div class="channel-id">${channel.channel}</div>
@@ -1273,15 +1181,14 @@ async function createChannelsList(channels) {
             </div>
         `;
         
-        return channelItem;
-    });
-    
-    // Wait for all logos to be processed
-    const channelItems = await Promise.all(channelPromises);
-    
-    // Append all items to the list
-    channelItems.forEach(item => {
-        channelsList.appendChild(item);
+        // Add error handling for logo loading
+        const logoImg = channelItem.querySelector('.channel-logo');
+        logoImg.onerror = function() {
+            // If logo fails to load, use Telegram default logo
+            this.src = 'https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg';
+        };
+        
+        channelsList.appendChild(channelItem);
     });
     
     channelsContainer.style.display = 'block';
@@ -1296,9 +1203,8 @@ function showResult(message, isSuccess, channels, channelCount) {
         resultMessage.className = 'result-message success-message';
         
         // Show all channels with status
-        createChannelsList(channels).then(joinedCount => {
-            updateProgress(joinedCount, channelCount);
-        });
+        const joinedCount = createChannelsList(channels);
+        updateProgress(joinedCount, channelCount);
         
         actionButtons.innerHTML = `
             <button id="joinNowBtn" class="join-now-button">
@@ -1312,45 +1218,19 @@ function showResult(message, isSuccess, channels, channelCount) {
         resultMessage.className = 'result-message warning-message';
         
         // Show all channels with status
-        createChannelsList(channels).then(joinedCount => {
-            updateProgress(joinedCount, channelCount);
-        });
+        const joinedCount = createChannelsList(channels);
+        updateProgress(joinedCount, channelCount);
         
         // Create buttons HTML
         let buttonsHTML = '';
         
         // Add "Join All" button if there are channels not joined
-        if (channels && channels.length > 0) {
-            // We'll add the button after we know the joined count
-            createChannelsList(channels).then(joinedCount => {
-                if (joinedCount < channels.length) {
-                    const joinAllBtn = document.createElement('button');
-                    joinAllBtn.id = 'joinAllBtn';
-                    joinAllBtn.className = 'join-all-button';
-                    joinAllBtn.innerHTML = '<span class="button-text"><i class="fas fa-external-link-alt"></i> Open All Channels</span>';
-                    
-                    joinAllBtn.addEventListener('click', () => {
-                        // Open all channels that are not joined in new tabs
-                        let openedCount = 0;
-                        channels.forEach(channel => {
-                            if (!channel.is_member && channel.invite_link) {
-                                window.open(channel.invite_link, '_blank');
-                                openedCount++;
-                            }
-                        });
-                        
-                        if (openedCount > 0) {
-                            setTimeout(() => {
-                                alert(`Opened ${openedCount} channel(s) in new tabs. Please join them and then click "Verify Membership Again".`);
-                            }, 500);
-                        } else {
-                            alert("All channels are already joined!");
-                        }
-                    });
-                    
-                    actionButtons.insertBefore(joinAllBtn, actionButtons.firstChild);
-                }
-            });
+        if (channels && channels.length > 0 && joinedCount < channels.length) {
+            buttonsHTML += `
+                <button id="joinAllBtn" class="join-all-button">
+                    <span class="button-text"><i class="fas fa-external-link-alt"></i> Open All Channels</span>
+                </button>
+            `;
         }
         
         buttonsHTML += `
@@ -1359,7 +1239,7 @@ function showResult(message, isSuccess, channels, channelCount) {
             </button>
         `;
         
-        actionButtons.innerHTML += buttonsHTML;
+        actionButtons.innerHTML = buttonsHTML;
     }
     
     initialState.style.display = 'none';
@@ -1369,6 +1249,7 @@ function showResult(message, isSuccess, channels, channelCount) {
     setTimeout(() => {
         const joinNowBtn = document.getElementById('joinNowBtn');
         const checkAgainBtn = document.getElementById('checkAgainBtn');
+        const joinAllBtn = document.getElementById('joinAllBtn');
         
         if (joinNowBtn) {
             joinNowBtn.addEventListener('click', joinGroup);
@@ -1376,6 +1257,27 @@ function showResult(message, isSuccess, channels, channelCount) {
         
         if (checkAgainBtn) {
             checkAgainBtn.addEventListener('click', resetToInitialState);
+        }
+        
+        if (joinAllBtn && channels) {
+            joinAllBtn.addEventListener('click', () => {
+                // Open all channels that are not joined in new tabs
+                let openedCount = 0;
+                channels.forEach(channel => {
+                    if (!channel.is_member && channel.invite_link) {
+                        window.open(channel.invite_link, '_blank');
+                        openedCount++;
+                    }
+                });
+                
+                if (openedCount > 0) {
+                    setTimeout(() => {
+                        alert(`Opened ${openedCount} channel(s) in new tabs. Please join them and then click "Verify Membership Again".`);
+                    }, 500);
+                } else {
+                    alert("All channels are already joined!");
+                }
+            });
         }
     }, 100);
 }

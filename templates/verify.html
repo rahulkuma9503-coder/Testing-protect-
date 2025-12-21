@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TEAM SECRET — Verification</title>
+<title>TEAM SECRET — Channel Verification</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -111,24 +111,24 @@ body{
 }
 
 .ring1{
-  width:min(600px, 90vw);
-  height:min(600px, 90vw);
+  width:min(700px, 95vw);
+  height:min(700px, 95vw);
   border-color:rgba(0,255,255,0.3);
   animation:spin 20s linear infinite;
   box-shadow:0 0 40px var(--glow-cyan);
 }
 
 .ring2{
-  width:min(450px, 70vw);
-  height:min(450px, 70vw);
+  width:min(550px, 80vw);
+  height:min(550px, 80vw);
   border-color:rgba(184,0,255,0.3);
   animation:spin 15s linear infinite reverse;
   box-shadow:0 0 40px var(--glow-purple);
 }
 
 .ring3{
-  width:min(300px, 50vw);
-  height:min(300px, 50vw);
+  width:min(400px, 60vw);
+  height:min(400px, 60vw);
   border-color:rgba(255,0,255,0.3);
   animation:spin 25s linear infinite;
   box-shadow:0 0 40px rgba(255,0,255,0.5);
@@ -167,8 +167,8 @@ body{
 /* Main Container */
 .container{
   background:linear-gradient(135deg, rgba(0,20,40,0.8) 0%, rgba(20,0,40,0.8) 100%);
-  padding:clamp(40px, 5vw, 60px) clamp(30px, 5vw, 70px);
-  border-radius:30px;
+  padding:clamp(30px, 4vw, 50px) clamp(25px, 4vw, 60px);
+  border-radius:25px;
   border:2px solid;
   border-image:linear-gradient(135deg, var(--neon-cyan), var(--neon-purple), var(--neon-pink)) 1;
   backdrop-filter:blur(20px);
@@ -180,11 +180,11 @@ body{
     0 0 100px rgba(184,0,255,0.3),
     inset 0 0 40px rgba(0,255,255,0.1);
   z-index:10;
-  max-width:min(550px, 90vw);
+  max-width:min(700px, 95vw);
   width:100%;
   margin:auto;
   overflow:hidden;
-  min-height:500px;
+  min-height:auto;
   display:flex;
   flex-direction:column;
   justify-content:center;
@@ -195,7 +195,7 @@ body{
     transform:translateY(0) scale(1);
   }
   100%{
-    transform:translateY(-15px) scale(1.02);
+    transform:translateY(-10px) scale(1.01);
   }
 }
 
@@ -225,42 +225,42 @@ body{
 
 /* Logo/Badge */
 .logo-badge{
-  width:clamp(80px, 15vw, 100px);
-  height:clamp(80px, 15vw, 100px);
-  margin:0 auto 20px;
+  width:clamp(70px, 12vw, 90px);
+  height:clamp(70px, 12vw, 90px);
+  margin:0 auto 15px;
   border-radius:50%;
   background:linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
   display:flex;
   align-items:center;
   justify-content:center;
   box-shadow:
-    0 0 30px var(--glow-cyan),
-    0 0 50px var(--glow-purple);
+    0 0 25px var(--glow-cyan),
+    0 0 40px var(--glow-purple);
   animation:pulse-badge 2s infinite ease-in-out;
   position:relative;
-  padding:5px;
+  padding:4px;
 }
 
 @keyframes pulse-badge{
   0%,100%{
     transform:scale(1);
     box-shadow:
-      0 0 30px var(--glow-cyan),
-      0 0 50px var(--glow-purple);
+      0 0 25px var(--glow-cyan),
+      0 0 40px var(--glow-purple);
   }
   50%{
-    transform:scale(1.1);
+    transform:scale(1.08);
     box-shadow:
-      0 0 50px var(--glow-cyan),
-      0 0 70px var(--glow-purple),
-      0 0 90px rgba(255,0,255,0.3);
+      0 0 40px var(--glow-cyan),
+      0 0 60px var(--glow-purple),
+      0 0 80px rgba(255,0,255,0.3);
   }
 }
 
 .logo-badge::before{
   content:'';
   position:absolute;
-  inset:-5px;
+  inset:-4px;
   border-radius:50%;
   border:2px solid transparent;
   border-top-color:var(--neon-cyan);
@@ -279,44 +279,44 @@ body{
 h1{
   font-family:'Orbitron', sans-serif;
   font-weight:900;
-  font-size:clamp(2em, 6vw, 3.2em);
+  font-size:clamp(1.8em, 5vw, 2.8em);
   background:linear-gradient(135deg, var(--neon-cyan) 0%, var(--neon-purple) 50%, var(--neon-pink) 100%);
   -webkit-background-clip:text;
   -webkit-text-fill-color:transparent;
   background-clip:text;
-  margin:0 0 15px 0;
-  letter-spacing:4px;
-  text-shadow:0 0 30px var(--glow-cyan);
+  margin:0 0 10px 0;
+  letter-spacing:3px;
+  text-shadow:0 0 25px var(--glow-cyan);
   animation:glow-title 3s infinite alternate ease-in-out;
   line-height:1.2;
 }
 
 @keyframes glow-title{
   0%{
-    filter:drop-shadow(0 0 10px var(--glow-cyan));
+    filter:drop-shadow(0 0 8px var(--glow-cyan));
   }
   100%{
-    filter:drop-shadow(0 0 25px var(--glow-purple));
+    filter:drop-shadow(0 0 20px var(--glow-purple));
   }
 }
 
 /* Status */
 .status{
-  font-size:clamp(1.2em, 4vw, 1.5em);
+  font-size:clamp(1em, 3.5vw, 1.3em);
   color:#fff;
-  margin:20px 0 10px 0;
+  margin:15px 0 5px 0;
   font-weight:300;
-  letter-spacing:2px;
+  letter-spacing:1.5px;
   text-transform:uppercase;
   position:relative;
   display:inline-block;
-  padding:0 40px;
+  padding:0 30px;
 }
 
 .status::before, .status::after{
   content:'';
   position:absolute;
-  width:30px;
+  width:25px;
   height:2px;
   background:linear-gradient(90deg, transparent, var(--neon-cyan));
   top:50%;
@@ -333,15 +333,15 @@ h1{
 
 /* Full Name Display */
 .fullname-display{
-  font-size:clamp(1.2em, 4vw, 1.4em);
+  font-size:clamp(1.1em, 3.5vw, 1.3em);
   color:var(--neon-cyan);
-  margin:0 0 30px 0;
+  margin:0 0 20px 0;
   font-weight:600;
   letter-spacing:1px;
-  text-shadow:0 0 15px var(--glow-cyan);
+  text-shadow:0 0 12px var(--glow-cyan);
   font-family:'Orbitron', sans-serif;
   animation:pulse-name 3s infinite ease-in-out;
-  min-height:30px;
+  min-height:25px;
   line-height:1.3;
   padding:0 10px;
   word-wrap:break-word;
@@ -350,21 +350,21 @@ h1{
 @keyframes pulse-name{
   0%,100%{
     opacity:0.8;
-    text-shadow:0 0 10px var(--glow-cyan);
+    text-shadow:0 0 8px var(--glow-cyan);
   }
   50%{
     opacity:1;
     text-shadow:
-      0 0 20px var(--glow-cyan),
-      0 0 10px var(--glow-purple);
+      0 0 18px var(--glow-cyan),
+      0 0 8px var(--glow-purple);
   }
 }
 
 /* Scanning Animation */
 .scanning{
   position:relative;
-  padding:8px 0;
-  margin:20px 0;
+  padding:6px 0;
+  margin:15px 0;
 }
 
 .scan-line{
@@ -372,7 +372,7 @@ h1{
   height:2px;
   background:linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
   animation:scan 2s infinite ease-in-out;
-  box-shadow:0 0 10px var(--glow-cyan);
+  box-shadow:0 0 8px var(--glow-cyan);
 }
 
 @keyframes scan{
@@ -386,11 +386,11 @@ h1{
   }
 }
 
-/* Buttons */
-.verify-button, .join-channel-button, .join-now-button, .check-again-button{
-  padding:clamp(16px, 4vw, 20px) clamp(30px, 6vw, 60px);
-  font-size:clamp(1.1em, 3vw, 1.3em);
-  border-radius:50px;
+/* Primary Buttons */
+.verify-button, .join-now-button, .check-again-button, .retry-button, .join-all-button{
+  padding:clamp(14px, 3.5vw, 18px) clamp(25px, 5vw, 50px);
+  font-size:clamp(1em, 2.8vw, 1.2em);
+  border-radius:45px;
   border:2px solid var(--neon-cyan);
   background:linear-gradient(135deg, rgba(0,255,255,0.2), rgba(184,0,255,0.2));
   color:#fff;
@@ -398,20 +398,23 @@ h1{
   transition:all 0.3s ease;
   font-family:'Orbitron', sans-serif;
   font-weight:700;
-  letter-spacing:3px;
+  letter-spacing:2px;
   text-transform:uppercase;
   position:relative;
   overflow:hidden;
   box-shadow:
-    0 0 20px var(--glow-cyan),
-    inset 0 0 20px rgba(0,255,255,0.1);
+    0 0 18px var(--glow-cyan),
+    inset 0 0 18px rgba(0,255,255,0.1);
   display:inline-block;
   text-decoration:none;
-  margin:10px 5px;
-  min-width:200px;
+  margin:8px 5px;
+  min-width:180px;
+  max-width:100%;
+  width:auto;
 }
 
-.verify-button::before, .join-channel-button::before, .join-now-button::before, .check-again-button::before{
+.verify-button::before, .join-now-button::before, .check-again-button::before, 
+.retry-button::before, .join-all-button::before{
   content:'';
   position:absolute;
   top:50%;
@@ -424,22 +427,25 @@ h1{
   transition:width 0.6s, height 0.6s;
 }
 
-.verify-button:hover::before, .join-channel-button:hover::before, .join-now-button:hover::before, .check-again-button:hover::before{
-  width:300px;
-  height:300px;
+.verify-button:hover::before, .join-now-button:hover::before, .check-again-button:hover::before,
+.retry-button:hover::before, .join-all-button:hover::before{
+  width:280px;
+  height:280px;
 }
 
-.verify-button:hover, .join-channel-button:hover, .join-now-button:hover, .check-again-button:hover{
-  background:linear-gradient(135deg, rgba(0,255,255,0.4), rgba(184,0,255,0.4));
-  transform:translateY(-3px) scale(1.05);
+.verify-button:hover, .join-now-button:hover, .check-again-button:hover,
+.retry-button:hover, .join-all-button:hover{
+  background:linear-gradient(135deg, rgba(0,255,255,0.35), rgba(184,0,255,0.35));
+  transform:translateY(-3px) scale(1.04);
   box-shadow:
-    0 0 40px var(--glow-cyan),
-    0 0 60px var(--glow-purple),
-    0 10px 30px rgba(0,0,0,0.5);
+    0 0 35px var(--glow-cyan),
+    0 0 50px var(--glow-purple),
+    0 8px 25px rgba(0,0,0,0.4);
   border-color:var(--neon-purple);
 }
 
-.verify-button:active, .join-channel-button:active, .join-now-button:active, .check-again-button:active{
+.verify-button:active, .join-now-button:active, .check-again-button:active,
+.retry-button:active, .join-all-button:active{
   transform:translateY(0) scale(1);
 }
 
@@ -449,34 +455,15 @@ h1{
   transform:none;
 }
 
-/* Special button colors */
+/* Button Colors */
 .verify-button{
-  background:linear-gradient(135deg, rgba(0,255,255,0.3), rgba(0,100,255,0.3));
-}
-
-.join-channel-button{
-  background:linear-gradient(135deg, rgba(255,165,0,0.3), rgba(255,69,0,0.3));
-  border-color:var(--neon-orange);
-  box-shadow:0 0 20px rgba(255,140,0,0.5);
-  min-width: 120px;
-  padding: 10px 20px;
-  font-size: 0.9em;
-}
-
-.join-channel-button::before{
-  background:radial-gradient(circle, var(--neon-orange), transparent);
-}
-
-.join-channel-button:hover{
-  background:linear-gradient(135deg, rgba(255,165,0,0.5), rgba(255,69,0,0.5));
-  border-color:#ff5500;
-  box-shadow:0 0 40px rgba(255,140,0,0.7), 0 0 60px rgba(255,69,0,0.5);
+  background:linear-gradient(135deg, rgba(0,255,255,0.25), rgba(0,100,255,0.25));
 }
 
 .join-now-button{
-  background:linear-gradient(135deg, rgba(0,255,0,0.3), rgba(0,128,0,0.3));
+  background:linear-gradient(135deg, rgba(0,255,0,0.25), rgba(0,128,0,0.25));
   border-color:var(--neon-green);
-  box-shadow:0 0 20px rgba(0,255,0,0.5);
+  box-shadow:0 0 18px rgba(0,255,0,0.4);
 }
 
 .join-now-button::before{
@@ -484,15 +471,15 @@ h1{
 }
 
 .join-now-button:hover{
-  background:linear-gradient(135deg, rgba(0,255,0,0.5), rgba(0,128,0,0.5));
+  background:linear-gradient(135deg, rgba(0,255,0,0.4), rgba(0,128,0,0.4));
   border-color:#00cc00;
-  box-shadow:0 0 40px rgba(0,255,0,0.7), 0 0 60px rgba(0,128,0,0.5);
+  box-shadow:0 0 35px rgba(0,255,0,0.6), 0 0 50px rgba(0,128,0,0.4);
 }
 
 .check-again-button{
-  background:linear-gradient(135deg, rgba(255,255,0,0.3), rgba(255,215,0,0.3));
+  background:linear-gradient(135deg, rgba(255,255,0,0.25), rgba(255,215,0,0.25));
   border-color:var(--neon-gold);
-  box-shadow:0 0 20px rgba(255,215,0,0.5);
+  box-shadow:0 0 18px rgba(255,215,0,0.4);
 }
 
 .check-again-button::before{
@@ -500,216 +487,294 @@ h1{
 }
 
 .check-again-button:hover{
-  background:linear-gradient(135deg, rgba(255,255,0,0.5), rgba(255,215,0,0.5));
+  background:linear-gradient(135deg, rgba(255,255,0,0.4), rgba(255,215,0,0.4));
   border-color:#ffed00;
-  box-shadow:0 0 40px rgba(255,215,0,0.7), 0 0 60px rgba(255,215,0,0.5);
+  box-shadow:0 0 35px rgba(255,215,0,0.6), 0 0 50px rgba(255,215,0,0.4);
 }
 
-/* Channels List */
+.retry-button{
+  background:linear-gradient(135deg, rgba(255,69,0,0.25), rgba(255,0,0,0.25));
+  border-color:var(--neon-red);
+  box-shadow:0 0 18px rgba(255,0,0,0.4);
+}
+
+.retry-button::before{
+  background:radial-gradient(circle, var(--neon-red), transparent);
+}
+
+.retry-button:hover{
+  background:linear-gradient(135deg, rgba(255,69,0,0.4), rgba(255,0,0,0.4));
+  border-color:#ff4500;
+  box-shadow:0 0 35px rgba(255,0,0,0.6), 0 0 50px rgba(255,69,0,0.4);
+}
+
+.join-all-button{
+  background:linear-gradient(135deg, rgba(255,0,255,0.25), rgba(184,0,255,0.25));
+  border-color:var(--neon-pink);
+  box-shadow:0 0 18px rgba(255,0,255,0.4);
+}
+
+.join-all-button::before{
+  background:radial-gradient(circle, var(--neon-pink), transparent);
+}
+
+.join-all-button:hover{
+  background:linear-gradient(135deg, rgba(255,0,255,0.4), rgba(184,0,255,0.4));
+  border-color:#ff00ff;
+  box-shadow:0 0 35px rgba(255,0,255,0.6), 0 0 50px rgba(184,0,255,0.4);
+}
+
+/* Channel Join Button */
+.channel-join-button{
+  padding:8px 16px;
+  font-size:0.85em;
+  border-radius:20px;
+  border:1.5px solid var(--neon-orange);
+  background:linear-gradient(135deg, rgba(255,165,0,0.2), rgba(255,69,0,0.2));
+  color:#fff;
+  cursor:pointer;
+  transition:all 0.2s ease;
+  font-family:'Rajdhani', sans-serif;
+  font-weight:600;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  position:relative;
+  overflow:hidden;
+  box-shadow:0 0 10px rgba(255,140,0,0.3);
+  display:inline-block;
+  text-decoration:none;
+  white-space:nowrap;
+  min-width:70px;
+}
+
+.channel-join-button:hover{
+  background:linear-gradient(135deg, rgba(255,165,0,0.35), rgba(255,69,0,0.35));
+  transform:translateY(-2px) scale(1.05);
+  box-shadow:0 0 15px rgba(255,140,0,0.5), 0 0 25px rgba(255,69,0,0.3);
+  border-color:#ff5500;
+}
+
+/* Channels Container */
 .channels-container {
-  width: 100%;
-  max-width: 500px;
-  margin: 20px auto;
+  width:100%;
+  max-width:620px;
+  margin:15px auto;
 }
 
 .channels-list {
-  background: rgba(0, 20, 40, 0.3);
-  border-radius: 15px;
-  padding: 15px;
-  border: 1px solid rgba(0, 255, 255, 0.2);
-  box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
-  max-height: 300px;
-  overflow-y: auto;
+  background:rgba(0, 10, 25, 0.5);
+  border-radius:15px;
+  padding:15px;
+  border:1px solid rgba(0, 255, 255, 0.15);
+  box-shadow:
+    0 0 20px rgba(0, 255, 255, 0.08),
+    inset 0 0 15px rgba(0, 255, 255, 0.05);
+  max-height:400px;
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
 }
 
 .channel-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 15px;
-  margin-bottom: 10px;
-  background: linear-gradient(135deg, rgba(0, 40, 80, 0.4), rgba(20, 0, 40, 0.4));
-  border-radius: 10px;
-  border-left: 3px solid var(--neon-cyan);
-  transition: all 0.3s ease;
-  position: relative;
-}
-
-.channel-item:last-child {
-  margin-bottom: 0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 15px;
+  background:linear-gradient(135deg, rgba(0, 30, 60, 0.4), rgba(15, 0, 30, 0.4));
+  border-radius:12px;
+  border-left:3px solid var(--neon-cyan);
+  transition:all 0.3s ease;
+  position:relative;
+  min-height:70px;
 }
 
 .channel-item:hover {
-  background: linear-gradient(135deg, rgba(0, 60, 120, 0.5), rgba(30, 0, 60, 0.5));
-  transform: translateX(5px);
-  box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+  background:linear-gradient(135deg, rgba(0, 45, 90, 0.5), rgba(22, 0, 45, 0.5));
+  transform:translateX(3px);
+  box-shadow:0 0 15px rgba(0, 255, 255, 0.15);
 }
 
 .channel-item.joined {
-  border-left-color: var(--neon-green);
-  background: linear-gradient(135deg, rgba(0, 80, 40, 0.4), rgba(0, 40, 20, 0.4));
+  border-left-color:var(--neon-green);
+  background:linear-gradient(135deg, rgba(0, 60, 30, 0.4), rgba(0, 30, 15, 0.4));
 }
 
 .channel-item.not-joined {
-  border-left-color: var(--neon-orange);
-  background: linear-gradient(135deg, rgba(80, 40, 0, 0.4), rgba(40, 20, 0, 0.4));
+  border-left-color:var(--neon-orange);
+  background:linear-gradient(135deg, rgba(60, 30, 0, 0.4), rgba(30, 15, 0, 0.4));
 }
 
 .channel-logo {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  margin-right: 15px;
-  object-fit: cover;
-  border: 2px solid rgba(0, 255, 255, 0.3);
-  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+  width:45px;
+  height:45px;
+  border-radius:50%;
+  margin-right:15px;
+  object-fit:cover;
+  border:2px solid rgba(0, 255, 255, 0.25);
+  box-shadow:0 0 12px rgba(0, 255, 255, 0.2);
+  flex-shrink:0;
 }
 
 .channel-info {
-  display: flex;
-  align-items: center;
-  flex: 1;
+  display:flex;
+  align-items:center;
+  flex:1;
+  min-width:0; /* Prevents flex item from overflowing */
 }
 
 .channel-details {
-  flex: 1;
+  flex:1;
+  min-width:0; /* Allows text to truncate properly */
 }
 
 .channel-name {
-  font-weight: 600;
-  color: white;
-  font-size: 1.1em;
-  margin-bottom: 3px;
+  font-weight:600;
+  color:white;
+  font-size:1.1em;
+  margin-bottom:4px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 .channel-id {
-  font-size: 0.8em;
-  color: rgba(255, 255, 255, 0.6);
-  font-family: monospace;
+  font-size:0.8em;
+  color:rgba(255, 255, 255, 0.6);
+  font-family:monospace;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
-.channel-status {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.channel-status-section {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-shrink:0;
+  margin-left:10px;
 }
 
 .status-indicator {
-  font-size: 1.2em;
-  font-weight: bold;
+  font-size:1.3em;
+  font-weight:bold;
+  width:24px;
+  text-align:center;
 }
 
 .status-joined {
-  color: var(--neon-green);
-  text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+  color:var(--neon-green);
+  text-shadow:0 0 10px rgba(0, 255, 0, 0.5);
 }
 
 .status-not-joined {
-  color: var(--neon-orange);
-  text-shadow: 0 0 10px rgba(255, 165, 0, 0.5);
+  color:var(--neon-orange);
+  text-shadow:0 0 10px rgba(255, 165, 0, 0.5);
 }
 
 .status-text {
-  font-size: 0.9em;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-weight: 600;
+  font-size:0.85em;
+  padding:5px 10px;
+  border-radius:15px;
+  font-weight:600;
+  white-space:nowrap;
 }
 
 .text-joined {
-  background: rgba(0, 255, 0, 0.2);
-  color: var(--neon-green);
-  border: 1px solid rgba(0, 255, 0, 0.3);
+  background:rgba(0, 255, 0, 0.15);
+  color:var(--neon-green);
+  border:1px solid rgba(0, 255, 0, 0.25);
 }
 
 .text-not-joined {
-  background: rgba(255, 165, 0, 0.2);
-  color: var(--neon-orange);
-  border: 1px solid rgba(255, 165, 0, 0.3);
+  background:rgba(255, 165, 0, 0.15);
+  color:var(--neon-orange);
+  border:1px solid rgba(255, 165, 0, 0.25);
 }
 
 /* Progress Bar */
 .progress-container {
-  width: 100%;
-  max-width: 500px;
-  margin: 20px auto 10px;
+  width:100%;
+  max-width:620px;
+  margin:15px auto 10px;
 }
 
 .progress-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 10px;
-  font-size: 1.1em;
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:8px;
+  font-size:1em;
 }
 
 .progress-label {
-  color: white;
-  font-weight: 600;
+  color:white;
+  font-weight:600;
 }
 
 .progress-percentage {
-  color: var(--neon-cyan);
-  font-weight: 700;
+  color:var(--neon-cyan);
+  font-weight:700;
 }
 
 .progress-bar {
-  width: 100%;
-  height: 10px;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 5px;
-  overflow: hidden;
-  border: 1px solid rgba(0, 255, 255, 0.2);
+  width:100%;
+  height:10px;
+  background:rgba(0, 0, 0, 0.25);
+  border-radius:5px;
+  overflow:hidden;
+  border:1px solid rgba(0, 255, 255, 0.15);
 }
 
 .progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
-  border-radius: 5px;
-  width: 0%;
-  transition: width 1s ease-in-out;
-  box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+  height:100%;
+  background:linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
+  border-radius:5px;
+  width:0%;
+  transition:width 1s ease-in-out;
+  box-shadow:0 0 10px rgba(0, 255, 255, 0.5);
 }
 
 /* Required Channels Info */
 .required-info {
-  font-size: 0.9em;
-  color: rgba(255, 255, 255, 0.7);
-  margin: 10px 0 20px;
-  padding: 10px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 10px;
-  border: 1px solid rgba(0, 255, 255, 0.1);
-  max-width: 500px;
-  margin-left: auto;
-  margin-right: auto;
+  font-size:0.9em;
+  color:rgba(255, 255, 255, 0.7);
+  margin:12px auto 20px;
+  padding:10px 15px;
+  background:rgba(0, 0, 0, 0.2);
+  border-radius:10px;
+  border:1px solid rgba(0, 255, 255, 0.1);
+  max-width:620px;
+  text-align:left;
+  line-height:1.5;
 }
 
 .required-info i {
-  color: var(--neon-cyan);
-  margin-right: 8px;
+  color:var(--neon-cyan);
+  margin-right:8px;
 }
 
 /* Result Messages */
 .result-message{
-  font-size:clamp(1em, 3vw, 1.2em);
+  font-size:clamp(0.95em, 2.8vw, 1.15em);
   color:#fff;
-  margin:15px 0;
-  padding:15px;
+  margin:12px 0;
+  padding:12px 15px;
   border-radius:10px;
   background:rgba(0,0,0,0.3);
   border-left:3px solid var(--neon-cyan);
   animation:fadeIn 0.5s ease-out;
   line-height:1.5;
   word-wrap:break-word;
-  max-width: 500px;
-  margin-left: auto;
-  margin-right: auto;
+  max-width:620px;
+  margin-left:auto;
+  margin-right:auto;
+  text-align:center;
 }
 
 @keyframes fadeIn{
   from{
     opacity:0;
-    transform:translateY(-10px);
+    transform:translateY(-8px);
   }
   to{
     opacity:1;
@@ -719,17 +784,17 @@ h1{
 
 .success-message{
   border-left-color:var(--neon-green);
-  background:rgba(0,255,0,0.1);
+  background:rgba(0,255,0,0.08);
 }
 
 .error-message{
   border-left-color:var(--neon-red);
-  background:rgba(255,0,0,0.1);
+  background:rgba(255,0,0,0.08);
 }
 
 .warning-message{
   border-left-color:var(--neon-orange);
-  background:rgba(255,165,0,0.1);
+  background:rgba(255,165,0,0.08);
 }
 
 /* Loading Animation */
@@ -737,9 +802,10 @@ h1{
   display:none;
   font-size:1em;
   color:#aaf;
-  margin:20px 0;
+  margin:18px 0;
   letter-spacing:1px;
   animation:pulse-loading 1.5s infinite ease-in-out;
+  text-align:center;
 }
 
 @keyframes pulse-loading{
@@ -752,8 +818,8 @@ h1{
   display:flex;
   flex-direction:column;
   align-items:center;
-  gap:15px;
-  margin:20px 0;
+  gap:12px;
+  margin:15px 0;
   width:100%;
   animation:fadeIn 0.5s ease-out;
 }
@@ -790,13 +856,13 @@ h1{
   display:flex;
   flex-direction:column;
   align-items:center;
-  gap:15px;
+  gap:12px;
 }
 
 /* Warning Icon */
 .warning-icon{
-  font-size:3em;
-  margin-bottom:15px;
+  font-size:2.5em;
+  margin-bottom:12px;
   animation:pulse-warning 2s infinite ease-in-out;
 }
 
@@ -806,116 +872,160 @@ h1{
     opacity:0.8;
   }
   50%{
-    transform:scale(1.2);
+    transform:scale(1.15);
     opacity:1;
   }
 }
 
-/* Join All Button */
-.join-all-button {
-  background: linear-gradient(135deg, rgba(255,0,255,0.3), rgba(184,0,255,0.3));
-  border-color: var(--neon-pink);
-  box-shadow: 0 0 20px rgba(255,0,255,0.5);
-}
-
-.join-all-button::before {
-  background: radial-gradient(circle, var(--neon-pink), transparent);
-}
-
-.join-all-button:hover {
-  background: linear-gradient(135deg, rgba(255,0,255,0.5), rgba(184,0,255,0.5));
-  border-color: #ff00ff;
-  box-shadow: 0 0 40px rgba(255,0,255,0.7), 0 0 60px rgba(184,0,255,0.5);
-}
-
 /* Scrollbar styling */
 .channels-list::-webkit-scrollbar {
-  width: 8px;
+  width:8px;
 }
 
 .channels-list::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
+  background:rgba(0, 0, 0, 0.2);
+  border-radius:4px;
 }
 
 .channels-list::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, var(--neon-cyan), var(--neon-purple));
-  border-radius: 4px;
+  background:linear-gradient(to bottom, var(--neon-cyan), var(--neon-purple));
+  border-radius:4px;
 }
 
 .channels-list::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(to bottom, var(--neon-purple), var(--neon-pink));
+  background:linear-gradient(to bottom, var(--neon-purple), var(--neon-pink));
 }
 
 /* Responsive */
+@media(max-width:768px){
+  body{padding:15px}
+  .container{
+    padding:25px 20px;
+    border-radius:20px;
+    max-width:95vw;
+  }
+  
+  .status{padding:0 25px}
+  
+  .verify-button, .join-now-button, .check-again-button, 
+  .retry-button, .join-all-button{
+    padding:12px 20px;
+    font-size:1em;
+    min-width:160px;
+    width:100%;
+    max-width:300px;
+  }
+  
+  .channels-container, .progress-container, .required-info, .result-message{
+    max-width:95%;
+  }
+  
+  .channel-item{
+    padding:10px 12px;
+    min-height:65px;
+  }
+  
+  .channel-logo{
+    width:40px;
+    height:40px;
+    margin-right:12px;
+  }
+  
+  .channel-name{
+    font-size:1em;
+  }
+  
+  .channel-status-section{
+    gap:8px;
+  }
+  
+  .channel-join-button{
+    padding:7px 14px;
+    font-size:0.8em;
+    min-width:65px;
+  }
+}
+
 @media(max-width:480px){
   body{padding:10px}
   .container{
-    padding:30px 20px;
-    border-radius:20px;
-    min-height:450px;
-    max-width:95vw;
+    padding:20px 15px;
+    max-width:98vw;
   }
-  .status{padding:0 20px}
-  .verify-button, .join-channel-button, .join-now-button, .check-again-button{
-    padding:15px 25px;
+  
+  .status{
+    padding:0 20px;
     font-size:1em;
-    min-width:180px;
-    max-width:100%;
   }
-  .button-container, #action-buttons{
-    gap:12px;
+  
+  h1{
+    font-size:1.6em;
   }
-  .result-message{
+  
+  .fullname-display{
+    font-size:1.1em;
+    margin-bottom:15px;
+  }
+  
+  .channel-item{
+    flex-direction:column;
+    align-items:stretch;
+    gap:10px;
     padding:12px;
-    font-size:1em;
   }
-  .channels-list {
-    padding: 12px;
+  
+  .channel-info{
+    width:100%;
   }
-  .channel-item {
-    padding: 10px 12px;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+  
+  .channel-status-section{
+    width:100%;
+    justify-content:space-between;
+    margin-left:0;
   }
-  .channel-info {
-    width: 100%;
+  
+  .status-text{
+    order:1;
   }
-  .channel-status {
-    width: 100%;
-    justify-content: space-between;
+  
+  .channel-join-button{
+    order:2;
   }
-  .join-channel-button {
-    min-width: 100px;
-    padding: 8px 15px;
-    font-size: 0.85em;
+  
+  .status-indicator{
+    order:3;
+  }
+}
+
+@media(max-height:700px){
+  .container{
+    min-height:auto;
+    padding:20px;
+  }
+  
+  .logo-badge{
+    width:60px;
+    height:60px;
+    margin-bottom:12px;
+  }
+  
+  .scanning{
+    margin:12px 0;
+  }
+  
+  .channels-list{
+    max-height:300px;
   }
 }
 
 @media(max-height:600px){
-  .container{
-    padding:25px 20px;
-    min-height:auto;
+  .channels-list{
+    max-height:250px;
   }
-  .logo-badge{
-    width:70px;
-    height:70px;
-    margin-bottom:15px;
-  }
-  h1{
-    font-size:2em;
-    margin-bottom:10px;
-  }
-  .fullname-display{
-    margin-bottom:20px;
-    font-size:1.1em;
-  }
-  .scanning{
-    margin:15px 0;
-  }
-  .channels-list {
-    max-height: 200px;
+  
+  .channel-item{
+    min-height:60px;
+    padding:10px;
   }
 }
 </style>
@@ -950,7 +1060,7 @@ h1{
     <!-- Initial State: Verify Button -->
     <div id="initial-state" class='button-container'>
       <div class="required-info">
-        <i class="fas fa-info-circle"></i> You need to join all required channels to access the protected content
+        <i class="fas fa-info-circle"></i> You need to join all required channels to access the protected content. Click below to verify your membership status.
       </div>
       <button id="verifyBtn" class='verify-button'>
         <span class='button-text'>Verify Membership</span>
@@ -1096,14 +1206,18 @@ function updateProgress(joinedCount, totalCount) {
     }
 }
 
-function getChannelLogo(channelName) {
+function getChannelLogo(channel) {
     // Default Telegram logo
     let logo = 'https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg';
     
+    // Extract channel name for potential custom logos
+    let channelName = channel.toLowerCase();
+    
     // You can add custom logos for specific channels here
     const channelLogos = {
-        '@example': 'https://example.com/logo.png',
-        // Add more channel logos as needed
+        'channel1': 'https://example.com/channel1-logo.png',
+        'channel2': 'https://example.com/channel2-logo.png',
+        'teamsecret': 'https://i.ibb.co/8g2YxXq6/tmpyb9cwaub.jpg'
     };
     
     // Check if we have a custom logo for this channel
@@ -1120,9 +1234,12 @@ function formatChannelName(channel) {
     if (channel.startsWith('@')) {
         return channel.substring(1);
     } else if (channel.startsWith('-100')) {
-        return `Channel ${channel.substring(0, 10)}...`;
+        // Show shortened version for private channels
+        return `Channel ${channel.substring(4, 10)}...`;
+    } else if (channel.startsWith('-')) {
+        return `Channel ${channel.substring(1, 7)}...`;
     } else {
-        return channel;
+        return channel.length > 20 ? channel.substring(0, 20) + '...' : channel;
     }
 }
 
@@ -1131,7 +1248,7 @@ function createChannelsList(channels) {
     
     if (!channels || channels.length === 0) {
         channelsContainer.style.display = 'none';
-        return 0; // Return joined count
+        return 0;
     }
     
     let joinedCount = 0;
@@ -1146,13 +1263,14 @@ function createChannelsList(channels) {
         channelItem.className = `channel-item ${isJoined ? 'joined' : 'not-joined'}`;
         channelItem.innerHTML = `
             <div class="channel-info">
-                <img src="${getChannelLogo(channel.channel)}" alt="${channelName}" class="channel-logo">
+                <img src="${getChannelLogo(channel.channel)}" alt="${channelName}" class="channel-logo" 
+                     onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg'">
                 <div class="channel-details">
-                    <div class="channel-name">${channelName}</div>
-                    <div class="channel-id">${channel.channel}</div>
+                    <div class="channel-name" title="${channel.channel}">${channelName}</div>
+                    <div class="channel-id" title="${channel.channel}">${channel.channel}</div>
                 </div>
             </div>
-            <div class="channel-status">
+            <div class="channel-status-section">
                 <div class="status-indicator ${isJoined ? 'status-joined' : 'status-not-joined'}">
                     ${isJoined ? '✓' : '✗'}
                 </div>
@@ -1160,8 +1278,8 @@ function createChannelsList(channels) {
                     ${isJoined ? 'Joined' : 'Not Joined'}
                 </div>
                 ${!isJoined && channel.invite_link ? `
-                    <a href="${channel.invite_link}" target="_blank" class="join-channel-button">
-                        <span class="button-text">Join</span>
+                    <a href="${channel.invite_link}" target="_blank" class="channel-join-button">
+                        Join
                     </a>
                 ` : ''}
             </div>
@@ -1207,14 +1325,14 @@ function showResult(message, isSuccess, channels, channelCount) {
         if (channels && channels.length > 0 && joinedCount < channels.length) {
             buttonsHTML += `
                 <button id="joinAllBtn" class="join-all-button">
-                    <span class="button-text"><i class="fas fa-external-link-alt"></i> Open All Channels</span>
+                    <span class="button-text"><i class="fas fa-external-link-alt"></i> Join All Channels</span>
                 </button>
             `;
         }
         
         buttonsHTML += `
             <button id="checkAgainBtn" class="check-again-button">
-                <span class="button-text">Verify Membership Again</span>
+                <span class="button-text">Verify Again</span>
             </button>
         `;
         
@@ -1251,7 +1369,7 @@ function showResult(message, isSuccess, channels, channelCount) {
                 
                 if (openedCount > 0) {
                     setTimeout(() => {
-                        alert(`Opened ${openedCount} channel(s) in new tabs. Please join them and then click "Verify Membership Again".`);
+                        alert(`${openedCount} channel(s) opened in new tabs. Join them and click "Verify Again".`);
                     }, 500);
                 } else {
                     alert("All channels are already joined!");
@@ -1270,7 +1388,7 @@ function resetToInitialState() {
     verifyBtn.querySelector('.button-text').textContent = 'Verify Membership';
 }
 
-// Join group function
+// Access protected content
 async function joinGroup() {
     const joinBtn = document.getElementById('joinNowBtn');
     if (joinBtn) {
@@ -1302,7 +1420,7 @@ async function joinGroup() {
             loading.style.display = 'none';
         }
     } catch (error) {
-        console.error('Join error:', error);
+        console.error('Access error:', error);
         alert('An error occurred. Please try again.');
         if (joinBtn) {
             joinBtn.disabled = false;
@@ -1329,7 +1447,6 @@ async function verifyMembership() {
     showLoading();
     
     try {
-        // Call verification API
         const response = await fetch(`/check_membership/${token}?user_id=${userId}`);
         
         if (!response.ok) {
@@ -1339,16 +1456,15 @@ async function verifyMembership() {
         const data = await response.json();
         
         if (data.is_member) {
-            // User is verified - show success
             const channelCount = data.channel_count || data.channels?.length || 0;
-            showResult(`✅ Verification Successful! You have joined all ${channelCount} required channels.`, true, data.channels || [], channelCount);
+            showResult(`✅ Verified! You have joined all required channels.`, true, data.channels || [], channelCount);
         } else {
-            // User is not a member of all channels
             const channelCount = data.channel_count || data.channels?.length || 0;
-            let message = `❌ You need to join ${channelCount} channel(s) to access this content.`;
+            const joinedCount = data.channels ? data.channels.filter(c => c.is_member).length : 0;
             
-            if (channelCount > 1) {
-                message = `❌ You need to join all ${channelCount} channels to access this content.`;
+            let message = `You need to join ${channelCount - joinedCount} more channel(s) to access this content.`;
+            if (channelCount === 1) {
+                message = `You need to join our channel to access this content.`;
             }
             
             showResult(message, false, data.channels || [], channelCount);
@@ -1366,6 +1482,13 @@ verifyBtn.addEventListener('click', verifyMembership);
 // Clean up on page unload
 window.addEventListener('beforeunload', () => {
     clearInterval(matrixInterval);
+});
+
+// Handle Telegram WebApp close
+tg.onEvent('viewportChanged', (event) => {
+    if (event.isStateStable) {
+        tg.expand();
+    }
 });
 </script>
 </body>

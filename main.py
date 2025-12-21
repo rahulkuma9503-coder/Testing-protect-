@@ -585,7 +585,7 @@ I help you keep your channel links safe & secure.
                 if i + j < len(channel_info["channels"]):
                     channel = channel_info["channels"][i + j]
                     button_text = f"🌟 {channel['display_name'][:15]}"  # Limit text length
-                    row_buttons.append(InlineKeyboardButton(buttonText, url=channel["invite_link"]))
+                    row_buttons.append(InlineKeyboardButton(button_text, url=channel["invite_link"]))
             if row_buttons:
                 keyboard.append(row_buttons)
     

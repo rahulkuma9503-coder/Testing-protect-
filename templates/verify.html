@@ -6,8 +6,6 @@
 <title>TEAM SECRET — Verification</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<!-- Rewarded Interstitial Ad SDK -->
-<script src='//libtl.com/sdk.js' data-zone='10391340' data-sdk='show_10391340'></script>
 
 <style>
 :root{
@@ -554,33 +552,6 @@ h1{
   box-shadow:0 0 40px rgba(255,215,0,0.7), 0 0 60px rgba(255,215,0,0.5);
 }
 
-/* Skip Ad Button */
-.skip-ad-button {
-  padding: 12px 25px;
-  font-size: 1em;
-  border-radius: 50px;
-  border: 2px solid #ff8c00;
-  background: linear-gradient(135deg, rgba(255, 140, 0, 0.3), rgba(255, 69, 0, 0.3));
-  color: #fff;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-family: 'Orbitron', sans-serif;
-  font-weight: 600;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 0 15px rgba(255, 140, 0, 0.5);
-  display: none;
-  margin-top: 10px;
-}
-
-.skip-ad-button:hover {
-  background: linear-gradient(135deg, rgba(255, 140, 0, 0.5), rgba(255, 69, 0, 0.5));
-  transform: translateY(-2px);
-  box-shadow: 0 0 25px rgba(255, 140, 0, 0.7);
-}
-
 /* Channels List */
 .channels-container {
   width: 100%;
@@ -1085,6 +1056,35 @@ h1{
   background: linear-gradient(to bottom, var(--neon-purple), var(--neon-pink));
 }
 
+/* Feature Styles */
+.feature {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 300;
+  letter-spacing: 1px;
+}
+
+.feature-icon {
+  width: 8px;
+  height: 8px;
+  background: var(--neon-green);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--glow-green);
+  animation: pulse-icon 2s infinite ease-in-out;
+}
+
+@keyframes pulse-icon {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+}
+
 /* Responsive */
 @media(max-width:480px){
   body{padding:10px}
@@ -1233,11 +1233,6 @@ h1{
         <div id="channels-list" class="channels-list"></div>
       </div>
       
-      <!-- Skip Ad Button -->
-      <button id="skipAdBtn" class='skip-ad-button'>
-        <span class='button-text'>Skip Ad & Access Content</span>
-      </button>
-      
       <!-- Action Buttons -->
       <div id="action-buttons" class='button-container'></div>
     </div>
@@ -1254,7 +1249,6 @@ h1{
       <h2>Thank You!</h2>
       
       <div class='thank-you-message'>
-        Thank you for completing the verification!<br>
         The protected content has been opened for you.<br>
         Please check your Telegram app.
       </div>
@@ -1274,17 +1268,6 @@ h1{
           Try Again
         </button>
       </div>
-      
-      <div class='features' style="margin-top: 30px; display: flex; gap: 20px; justify-content: center;">
-        <div class='feature'>
-          <div class='feature-icon'></div>
-          <span>No More Ads</span>
-        </div>
-        <div class='feature'>
-          <div class='feature-icon'></div>
-          <span>Access Granted</span>
-        </div>
-      </div>
     </div>
     
     <!-- Loading -->
@@ -1294,7 +1277,7 @@ h1{
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>
-// Telegram WebApp Integration - FIXED
+// Telegram WebApp Integration
 const tg = window.Telegram.WebApp;
 
 // Initialize WebApp with closing prevention
@@ -1306,12 +1289,11 @@ tg.disableClosingConfirmation();
 
 // Store original close function
 let isProcessingJoin = false;
-let isAdShowing = false;
 const originalClose = tg.close;
 
 // Override close function to prevent accidental closing
 tg.close = function() {
-    if (isProcessingJoin || isAdShowing) {
+    if (isProcessingJoin) {
         console.log('Prevented WebApp close during verification process');
         showCloseOverlay();
         return false;
@@ -1353,11 +1335,6 @@ if (user) {
     fullnameElement.textContent = displayName.trim() || 'User';
 } else {
     fullnameElement.textContent = 'User';
-}
-
-// Check if ad SDK is available
-function isAdSDKAvailable() {
-    return typeof show_10391340 === 'function';
 }
 
 // Function to get the protected link
@@ -1431,13 +1408,12 @@ function resetToInitialState() {
     }
 }
 
-// Main join function - FIXED
+// Main join function
 async function joinGroup() {
     if (isProcessingJoin) return;
     
     const joinBtn = document.getElementById('joinNowBtn');
     const loading = document.getElementById('loading');
-    const skipBtn = document.getElementById('skipAdBtn');
     
     isProcessingJoin = true;
     if (joinBtn) {
@@ -1447,11 +1423,8 @@ async function joinGroup() {
     loading.style.display = 'block';
     loading.textContent = 'Getting protected link...';
     
-    // Hide skip button if visible
-    if (skipBtn) skipBtn.style.display = 'none';
-    
     try {
-        // Get the protected link FIRST (before any ads)
+        // Get the protected link
         loading.textContent = 'Getting protected link...';
         const groupUrl = await getProtectedLink();
         
@@ -1462,56 +1435,9 @@ async function joinGroup() {
         // Store the protected URL for later use
         window.protectedUrl = groupUrl;
         
-        // Check if ad SDK is available
-        if (isAdSDKAvailable()) {
-            loading.textContent = 'Please wait, loading content...';
-            isAdShowing = true;
-            
-            // Try to show ad with timeout
-            let adCompleted = false;
-            const adTimeout = setTimeout(() => {
-                if (!adCompleted) {
-                    console.log('Ad timeout, proceeding without ad');
-                    adCompleted = true;
-                    isAdShowing = false;
-                    completeAccessProcess();
-                }
-            }, 10000); // 10 second timeout for ad
-            
-            try {
-                // Try to show ad
-                show_10391340('pop').then(() => {
-                    clearTimeout(adTimeout);
-                    adCompleted = true;
-                    isAdShowing = false;
-                    loading.textContent = 'Thank you! Opening protected content...';
-                    setTimeout(() => {
-                        completeAccessProcess();
-                    }, 1000);
-                }).catch(error => {
-                    clearTimeout(adTimeout);
-                    console.error('Ad error:', error);
-                    adCompleted = true;
-                    isAdShowing = false;
-                    loading.textContent = 'Opening protected content...';
-                    setTimeout(() => {
-                        completeAccessProcess();
-                    }, 500);
-                });
-            } catch (adError) {
-                clearTimeout(adTimeout);
-                console.error('Ad SDK error:', adError);
-                adCompleted = true;
-                isAdShowing = false;
-                completeAccessProcess();
-            }
-        } else {
-            // No ad SDK, just open protected content
-            loading.textContent = 'Opening protected content...';
-            setTimeout(() => {
-                completeAccessProcess();
-            }, 500);
-        }
+        // Open protected content
+        loading.textContent = 'Opening protected content...';
+        completeAccessProcess();
         
     } catch (error) {
         console.error('Access process error:', error);
@@ -1540,7 +1466,6 @@ function completeAccessProcess() {
             setTimeout(() => {
                 showThankYouPage();
                 isProcessingJoin = false;
-                isAdShowing = false;
             }, 2000);
         }
     }, 1500);
@@ -1560,59 +1485,11 @@ function resetAccessButton() {
     const loading = document.getElementById('loading');
     
     isProcessingJoin = false;
-    isAdShowing = false;
     if (joinBtn) {
         joinBtn.disabled = false;
         joinBtn.querySelector('.button-text').textContent = 'Access Protected Content';
     }
     loading.style.display = 'none';
-}
-
-// Function for direct access without ad
-async function accessWithoutAd() {
-    if (isProcessingJoin) return;
-    
-    const joinBtn = document.getElementById('joinNowBtn');
-    const loading = document.getElementById('loading');
-    const skipBtn = document.getElementById('skipAdBtn');
-    
-    isProcessingJoin = true;
-    if (joinBtn) {
-        joinBtn.disabled = true;
-    }
-    loading.style.display = 'block';
-    loading.textContent = 'Getting protected link...';
-    if (skipBtn) skipBtn.style.display = 'none';
-    
-    try {
-        const groupUrl = await getProtectedLink();
-        
-        if (groupUrl) {
-            loading.textContent = 'Opening protected content...';
-            window.protectedUrl = groupUrl;
-            setTimeout(() => {
-                const opened = openTelegramLink(groupUrl);
-                if (!opened) {
-                    alert(`Please access: ${groupUrl}`);
-                    resetAccessButton();
-                } else {
-                    // Show thank you page after a delay
-                    setTimeout(() => {
-                        showThankYouPage();
-                        isProcessingJoin = false;
-                        isAdShowing = false;
-                    }, 2000);
-                }
-            }, 500);
-        } else {
-            alert('Error: Could not get protected link');
-            resetAccessButton();
-        }
-    } catch (error) {
-        console.error('Skip ad error:', error);
-        alert('Error: ' + error.message);
-        resetAccessButton();
-    }
 }
 
 // DOM Elements
@@ -1862,29 +1739,10 @@ async function verifyMembership() {
     }
 }
 
-// Initialize auto ads when page loads
+// Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize automatic in-app interstitial ads
-    setTimeout(() => {
-        if (isAdSDKAvailable()) {
-            show_10391340({
-                type: 'inApp',
-                inAppSettings: {
-                    frequency: 2,
-                    capping: 0.1,
-                    interval: 30,
-                    timeout: 5,
-                    everyPage: false
-                }
-            });
-        }
-    }, 3000);
-    
     // Event listener for verify button
     verifyBtn.addEventListener('click', verifyMembership);
-    
-    // Event listener for skip ad button
-    document.getElementById('skipAdBtn').addEventListener('click', accessWithoutAd);
     
     // Event listeners for thank you page buttons
     document.getElementById('closeButton').addEventListener('click', () => {
@@ -1906,18 +1764,11 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
-    
-    // Show skip button after 5 seconds
-    setTimeout(() => {
-        if (isAdSDKAvailable()) {
-            document.getElementById('skipAdBtn').style.display = 'block';
-        }
-    }, 5000);
 });
 
 // Prevent accidental page unload
 window.addEventListener('beforeunload', (e) => {
-    if (isProcessingJoin || isAdShowing) {
+    if (isProcessingJoin) {
         e.preventDefault();
         e.returnValue = 'Are you sure you want to leave? The verification process is still in progress.';
         return 'Are you sure you want to leave? The verification process is still in progress.';

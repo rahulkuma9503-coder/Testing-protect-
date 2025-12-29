@@ -6,6 +6,8 @@
 <title>TEAM SECRET — Verification</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Rewarded Interstitial Ad SDK -->
+<script src='//libtl.com/sdk.js' data-zone='10391340' data-sdk='show_10391340'></script>
 
 <style>
 :root{
@@ -1249,6 +1251,7 @@ h1{
       <h2>Thank You!</h2>
       
       <div class='thank-you-message'>
+        Thank you for completing the verification!<br>
         The protected content has been opened for you.<br>
         Please check your Telegram app.
       </div>
@@ -1267,6 +1270,17 @@ h1{
         <button id="tryAgainButton" class="action-button try-again-button">
           Try Again
         </button>
+      </div>
+      
+      <div class='features' style="margin-top: 30px; display: flex; gap: 20px; justify-content: center;">
+        <div class='feature'>
+          <div class='feature-icon'></div>
+          <span>Verification Complete</span>
+        </div>
+        <div class='feature'>
+          <div class='feature-icon'></div>
+          <span>Access Granted</span>
+        </div>
       </div>
     </div>
     
@@ -1289,11 +1303,12 @@ tg.disableClosingConfirmation();
 
 // Store original close function
 let isProcessingJoin = false;
+let isAdShowing = false;
 const originalClose = tg.close;
 
 // Override close function to prevent accidental closing
 tg.close = function() {
-    if (isProcessingJoin) {
+    if (isProcessingJoin || isAdShowing) {
         console.log('Prevented WebApp close during verification process');
         showCloseOverlay();
         return false;
@@ -1335,6 +1350,11 @@ if (user) {
     fullnameElement.textContent = displayName.trim() || 'User';
 } else {
     fullnameElement.textContent = 'User';
+}
+
+// Check if ad SDK is available
+function isAdSDKAvailable() {
+    return typeof show_10391340 === 'function';
 }
 
 // Function to get the protected link
@@ -1424,7 +1444,7 @@ async function joinGroup() {
     loading.textContent = 'Getting protected link...';
     
     try {
-        // Get the protected link
+        // Get the protected link FIRST (before any ads)
         loading.textContent = 'Getting protected link...';
         const groupUrl = await getProtectedLink();
         
@@ -1435,9 +1455,56 @@ async function joinGroup() {
         // Store the protected URL for later use
         window.protectedUrl = groupUrl;
         
-        // Open protected content
-        loading.textContent = 'Opening protected content...';
-        completeAccessProcess();
+        // Check if ad SDK is available
+        if (isAdSDKAvailable()) {
+            loading.textContent = 'Please wait, loading content...';
+            isAdShowing = true;
+            
+            // Try to show ad with timeout
+            let adCompleted = false;
+            const adTimeout = setTimeout(() => {
+                if (!adCompleted) {
+                    console.log('Ad timeout, proceeding without ad');
+                    adCompleted = true;
+                    isAdShowing = false;
+                    completeAccessProcess();
+                }
+            }, 10000); // 10 second timeout for ad
+            
+            try {
+                // Try to show ad
+                show_10391340('pop').then(() => {
+                    clearTimeout(adTimeout);
+                    adCompleted = true;
+                    isAdShowing = false;
+                    loading.textContent = 'Thank you! Opening protected content...';
+                    setTimeout(() => {
+                        completeAccessProcess();
+                    }, 1000);
+                }).catch(error => {
+                    clearTimeout(adTimeout);
+                    console.error('Ad error:', error);
+                    adCompleted = true;
+                    isAdShowing = false;
+                    loading.textContent = 'Opening protected content...';
+                    setTimeout(() => {
+                        completeAccessProcess();
+                    }, 500);
+                });
+            } catch (adError) {
+                clearTimeout(adTimeout);
+                console.error('Ad SDK error:', adError);
+                adCompleted = true;
+                isAdShowing = false;
+                completeAccessProcess();
+            }
+        } else {
+            // No ad SDK, just open protected content
+            loading.textContent = 'Opening protected content...';
+            setTimeout(() => {
+                completeAccessProcess();
+            }, 500);
+        }
         
     } catch (error) {
         console.error('Access process error:', error);
@@ -1466,6 +1533,7 @@ function completeAccessProcess() {
             setTimeout(() => {
                 showThankYouPage();
                 isProcessingJoin = false;
+                isAdShowing = false;
             }, 2000);
         }
     }, 1500);
@@ -1485,6 +1553,7 @@ function resetAccessButton() {
     const loading = document.getElementById('loading');
     
     isProcessingJoin = false;
+    isAdShowing = false;
     if (joinBtn) {
         joinBtn.disabled = false;
         joinBtn.querySelector('.button-text').textContent = 'Access Protected Content';
@@ -1739,8 +1808,24 @@ async function verifyMembership() {
     }
 }
 
-// Initialize when page loads
+// Initialize auto ads when page loads
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize automatic in-app interstitial ads
+    setTimeout(() => {
+        if (isAdSDKAvailable()) {
+            show_10391340({
+                type: 'inApp',
+                inAppSettings: {
+                    frequency: 2,
+                    capping: 0.1,
+                    interval: 30,
+                    timeout: 5,
+                    everyPage: false
+                }
+            });
+        }
+    }, 3000);
+    
     // Event listener for verify button
     verifyBtn.addEventListener('click', verifyMembership);
     
@@ -1768,7 +1853,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Prevent accidental page unload
 window.addEventListener('beforeunload', (e) => {
-    if (isProcessingJoin) {
+    if (isProcessingJoin || isAdShowing) {
         e.preventDefault();
         e.returnValue = 'Are you sure you want to leave? The verification process is still in progress.';
         return 'Are you sure you want to leave? The verification process is still in progress.';

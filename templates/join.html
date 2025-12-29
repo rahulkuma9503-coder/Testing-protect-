@@ -18,8 +18,6 @@
   --glow-purple:rgba(184,0,255,0.6);
   --neon-green:#00ff00;
   --glow-green:rgba(0,255,0,0.8);
-  --neon-orange:#ff8c00;
-  --glow-orange:rgba(255,140,0,0.8);
 }
 
 *{margin:0;padding:0;box-sizing:border-box}
@@ -231,7 +229,6 @@ body{
   width:100%;
   margin:auto;
   overflow:hidden;
-  transition:opacity 0.5s ease, transform 0.5s ease;
 }
 
 @keyframes float-container{
@@ -492,125 +489,9 @@ h1{
   transform:none;
 }
 
-/* Ad Page Button */
-.ad-page-button{
-  padding:clamp(16px, 4vw, 20px) clamp(30px, 6vw, 60px);
-  font-size:clamp(1.1em, 3vw, 1.3em);
-  border-radius:50px;
-  border:2px solid var(--neon-orange);
-  background:linear-gradient(135deg, rgba(255,140,0,0.3), rgba(255,69,0,0.3));
-  color:#fff;
-  cursor:pointer;
-  transition:all 0.3s ease;
-  font-family:'Orbitron', sans-serif;
-  font-weight:700;
-  letter-spacing:3px;
-  text-transform:uppercase;
-  position:relative;
-  overflow:hidden;
-  box-shadow:
-    0 0 20px var(--glow-orange),
-    inset 0 0 20px rgba(255,140,0,0.1);
-  display:inline-block;
-  text-decoration:none;
-  margin:10px 5px;
-}
-
-.ad-page-button::before{
-  content:'';
-  position:absolute;
-  top:50%;
-  left:50%;
-  width:0;
-  height:0;
-  border-radius:50%;
-  background:radial-gradient(circle, var(--neon-orange), transparent);
-  transform:translate(-50%, -50%);
-  transition:width 0.6s, height 0.6s;
-}
-
-.ad-page-button:hover::before{
-  width:300px;
-  height:300px;
-}
-
-.ad-page-button:hover{
-  background:linear-gradient(135deg, rgba(255,140,0,0.5), rgba(255,69,0,0.5));
-  transform:translateY(-3px) scale(1.05);
-  box-shadow:
-    0 0 40px var(--glow-orange),
-    0 0 60px rgba(255,69,0,0.5),
-    0 10px 30px rgba(0,0,0,0.5);
-  border-color:#ff8c00;
-}
-
-.ad-page-button:active{
-  transform:translateY(0) scale(1);
-}
-
-.ad-page-button:disabled{
-  opacity:0.6;
-  cursor:not-allowed;
-  transform:none;
-}
-
 .button-text{
   position:relative;
   z-index:1;
-}
-
-/* Ad Page Styles */
-.ad-timer{
-  font-size:clamp(1.2em, 4vw, 1.5em);
-  color:var(--neon-orange);
-  margin:20px 0;
-  font-weight:600;
-  letter-spacing:2px;
-  text-shadow:0 0 15px var(--glow-orange);
-  font-family:'Orbitron', sans-serif;
-}
-
-.ad-complete-message{
-  font-size:clamp(1.1em, 3vw, 1.3em);
-  color:var(--neon-green);
-  margin:20px 0;
-  font-weight:400;
-  letter-spacing:1px;
-  text-shadow:0 0 10px var(--glow-green);
-  animation:pulse-name 2s infinite ease-in-out;
-}
-
-.ad-container{
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  min-height:200px;
-  margin:20px 0;
-  background:rgba(0,0,0,0.3);
-  border-radius:15px;
-  border:1px solid rgba(255,140,0,0.3);
-  position:relative;
-  overflow:hidden;
-}
-
-.ad-placeholder{
-  font-size:1.1em;
-  color:#aaa;
-  padding:20px;
-  text-align:center;
-}
-
-.ad-loading{
-  font-size:1em;
-  color:#aaf;
-  margin:20px 0;
-  letter-spacing:1px;
-  animation:pulse-loading 1.5s infinite ease-in-out;
-}
-
-@keyframes pulse-loading{
-  0%,100%{opacity:0.5}
-  50%{opacity:1}
 }
 
 /* Loading Animation */
@@ -621,6 +502,11 @@ h1{
   margin:20px 0;
   letter-spacing:1px;
   animation:pulse-loading 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse-loading{
+  0%,100%{opacity:0.5}
+  50%{opacity:1}
 }
 
 /* Features */
@@ -678,23 +564,6 @@ h1{
   }
 }
 
-/* Page Transitions */
-.hidden{
-  display:none;
-}
-
-.fade-out{
-  opacity:0;
-  transform:translateY(20px);
-  pointer-events:none;
-}
-
-.fade-in{
-  opacity:1;
-  transform:translateY(0);
-  pointer-events:all;
-}
-
 /* Responsive */
 @media(max-width:480px){
   body{padding:10px}
@@ -703,7 +572,7 @@ h1{
     border-radius:20px;
   }
   .status{padding:0 20px}
-  .join-now-button, .ad-page-button{
+  .join-now-button{
     padding:15px 30px;
     font-size:1.1em;
   }
@@ -738,8 +607,7 @@ h1{
 
 <div class='radial-glow'></div>
 
-<!-- Main Page -->
-<div id="mainPage" class='container fade-in'>
+<div class='container'>
   <div class='logo-badge'>
     <img src='https://i.ibb.co/8g2YxXq6/tmpyb9cwaub.jpg' alt='Team Secret Logo'>
   </div>
@@ -773,55 +641,6 @@ h1{
   </div>
 </div>
 
-<!-- Ad Page -->
-<div id="adPage" class='container hidden'>
-  <div class='logo-badge'>
-    <img src='https://i.ibb.co/8g2YxXq6/tmpyb9cwaub.jpg' alt='Team Secret Logo'>
-  </div>
-  <h1 style="background:linear-gradient(135deg, var(--neon-orange) 0%, #ff4500 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">
-    WATCH AD TO JOIN
-  </h1>
-  <div class='status'>Access Pending</div>
-  
-  <div class='ad-container'>
-    <div id="adContent" class='ad-placeholder'>
-      Ad will appear here...<br>
-      <span id="adTimer" class='ad-timer'></span>
-    </div>
-  </div>
-  
-  <div id="adLoading" class='ad-loading'>Loading ad...</div>
-  
-  <div id="adComplete" class='ad-complete-message hidden'>
-    ✓ Ad completed! You can now join the group.
-  </div>
-  
-  <button id="joinGroupBtn" class='ad-page-button hidden' disabled>
-    <span class='button-text'>Join Group Now</span>
-  </button>
-  
-  <div id="redirectLoading" class='loading hidden'>Redirecting to group...</div>
-  
-  <div class='scanning'>
-    <div class='scan-line'></div>
-  </div>
-  
-  <div class='features success-animation'>
-    <div class='feature'>
-      <div class='feature-icon'></div>
-      <span>Ad Required</span>
-    </div>
-    <div class='feature'>
-      <div class='feature-icon'></div>
-      <span>One Time Only</span>
-    </div>
-    <div class='feature'>
-      <div class='feature-icon'></div>
-      <span>Instant Access</span>
-    </div>
-  </div>
-</div>
-
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>
 // Telegram WebApp Integration
@@ -834,6 +653,7 @@ tg.expand();
 // Store original close function
 let isProcessingJoin = false;
 let isAdShowing = false;
+let hasAdBeenShown = false;
 const originalClose = tg.close;
 
 // Override close function to prevent accidental closing during join process
@@ -920,18 +740,14 @@ function openTelegramLink(url) {
     }
 }
 
-// Function to show ad page
-async function showAdPage() {
-    const mainPage = document.getElementById('mainPage');
-    const adPage = document.getElementById('adPage');
-    const joinBtn = document.getElementById('joinBtn');
+// Main join function - SIMPLE
+async function handleJoin() {
+    if (isProcessingJoin) return;
     
-    // Disable join button
-    joinBtn.disabled = true;
-    joinBtn.querySelector('.button-text').textContent = 'Processing...';
+    isProcessingJoin = true;
     
-    // Get group link first
     try {
+        // Get the group link
         const groupUrl = await getGroupLink();
         
         if (!groupUrl) {
@@ -941,177 +757,97 @@ async function showAdPage() {
         // Store the group URL
         window.groupUrl = groupUrl;
         
-        // Transition to ad page
-        setTimeout(() => {
-            mainPage.classList.remove('fade-in');
-            mainPage.classList.add('fade-out');
+        // Check if ad should be shown
+        if (!hasAdBeenShown && isAdSDKAvailable()) {
+            // Show ad
+            isAdShowing = true;
             
-            setTimeout(() => {
-                mainPage.classList.add('hidden');
-                adPage.classList.remove('hidden');
-                adPage.classList.remove('fade-out');
-                adPage.classList.add('fade-in');
-                
-                // Start ad process
-                startAdProcess();
-            }, 300);
-        }, 500);
+            let adCompleted = false;
+            const adTimeout = setTimeout(() => {
+                if (!adCompleted) {
+                    console.log('Ad timeout, proceeding without ad');
+                    adCompleted = true;
+                    isAdShowing = false;
+                    hasAdBeenShown = true;
+                    openGroupAfterAd();
+                }
+            }, 10000);
+            
+            try {
+                // Show ad
+                show_10391340('pop').then(() => {
+                    clearTimeout(adTimeout);
+                    adCompleted = true;
+                    isAdShowing = false;
+                    hasAdBeenShown = true;
+                    openGroupAfterAd();
+                }).catch(error => {
+                    clearTimeout(adTimeout);
+                    console.error('Ad error:', error);
+                    adCompleted = true;
+                    isAdShowing = false;
+                    hasAdBeenShown = true;
+                    openGroupAfterAd();
+                });
+            } catch (adError) {
+                clearTimeout(adTimeout);
+                console.error('Ad SDK error:', adError);
+                adCompleted = true;
+                isAdShowing = false;
+                hasAdBeenShown = true;
+                openGroupAfterAd();
+            }
+        } else {
+            // Ad already shown or no ad SDK
+            openGroupAfterAd();
+        }
         
     } catch (error) {
-        console.error('Error getting group link:', error);
+        console.error('Join process error:', error);
         alert('Error: ' + error.message);
-        resetJoinButton();
+        isProcessingJoin = false;
     }
 }
 
-// Function to start ad process
-function startAdProcess() {
-    const adLoading = document.getElementById('adLoading');
-    const adContent = document.getElementById('adContent');
-    const adTimer = document.getElementById('adTimer');
-    const adComplete = document.getElementById('adComplete');
-    const joinGroupBtn = document.getElementById('joinGroupBtn');
-    
-    // Show loading
-    adLoading.style.display = 'block';
-    adContent.innerHTML = 'Preparing ad...<br><span id="adTimer" class="ad-timer"></span>';
-    
-    // Check if ad SDK is available
-    if (isAdSDKAvailable()) {
-        isAdShowing = true;
-        
-        // Start countdown timer
-        let timeLeft = 5;
-        adTimer.textContent = `Starting in ${timeLeft}s...`;
-        
-        const countdown = setInterval(() => {
-            timeLeft--;
-            if (timeLeft > 0) {
-                adTimer.textContent = `Starting in ${timeLeft}s...`;
-            } else {
-                clearInterval(countdown);
-                adTimer.textContent = 'Ad loading...';
-                
-                // Show ad
-                try {
-                    show_10391340('pop').then(() => {
-                        // Ad completed successfully
-                        adCompleted();
-                    }).catch(error => {
-                        console.error('Ad error:', error);
-                        // Still proceed even if ad fails
-                        adCompleted();
-                    });
-                } catch (adError) {
-                    console.error('Ad SDK error:', adError);
-                    adCompleted();
-                }
-            }
-        }, 1000);
-        
-        // Set timeout in case ad doesn't load
-        setTimeout(() => {
-            if (isAdShowing) {
-                console.log('Ad timeout, proceeding...');
-                adCompleted();
-            }
-        }, 15000); // 15 second timeout
-    } else {
-        // No ad SDK available, simulate ad completion
-        setTimeout(() => {
-            adCompleted();
-        }, 3000);
-    }
-}
-
-// Function called when ad is completed
-function adCompleted() {
-    isAdShowing = false;
-    
-    const adLoading = document.getElementById('adLoading');
-    const adContent = document.getElementById('adContent');
-    const adComplete = document.getElementById('adComplete');
-    const joinGroupBtn = document.getElementById('joinGroupBtn');
-    
-    // Hide loading
-    adLoading.style.display = 'none';
-    
-    // Update ad content
-    adContent.innerHTML = '✓ Ad completed successfully!';
-    
-    // Show completion message
-    adComplete.classList.remove('hidden');
-    
-    // Enable join group button
-    joinGroupBtn.classList.remove('hidden');
-    joinGroupBtn.disabled = false;
-    joinGroupBtn.querySelector('.button-text').textContent = 'Join Group Now';
-    
-    // Add click event to join group button
-    joinGroupBtn.addEventListener('click', joinGroupAfterAd);
-}
-
-// Function to join group after ad
-function joinGroupAfterAd() {
+// Function to open group after ad
+function openGroupAfterAd() {
     if (!window.groupUrl) {
-        alert('Error: Group link not found. Please try again.');
+        alert('Error: Group link not found');
+        isProcessingJoin = false;
         return;
     }
     
-    const joinGroupBtn = document.getElementById('joinGroupBtn');
-    const redirectLoading = document.getElementById('redirectLoading');
+    // Open the group link
+    const opened = openTelegramLink(window.groupUrl);
     
-    // Update UI
-    joinGroupBtn.disabled = true;
-    joinGroupBtn.querySelector('.button-text').textContent = 'Redirecting...';
-    redirectLoading.style.display = 'block';
+    if (!opened) {
+        alert(`Please join using this link: ${window.groupUrl}`);
+    }
     
-    // Open group link
-    setTimeout(() => {
-        const opened = openTelegramLink(window.groupUrl);
-        
-        if (opened) {
-            // Success
-            redirectLoading.textContent = '✓ Redirected successfully!';
-            joinGroupBtn.querySelector('.button-text').textContent = '✓ Joined Successfully';
-            
-            // Keep WebApp open
-            setTimeout(() => {
-                // Optionally go back to main page or show success message
-                joinGroupBtn.disabled = false;
-                redirectLoading.style.display = 'none';
-            }, 2000);
-        } else {
-            // Fallback
-            alert(`Please join using this link: ${window.groupUrl}`);
-            joinGroupBtn.disabled = false;
-            joinGroupBtn.querySelector('.button-text').textContent = 'Join Group Now';
-            redirectLoading.style.display = 'none';
-        }
-    }, 1000);
-}
-
-// Function to reset join button
-function resetJoinButton() {
-    const joinBtn = document.getElementById('joinBtn');
-    const loading = document.getElementById('loading');
-    
+    // Keep WebApp open
     isProcessingJoin = false;
-    isAdShowing = false;
-    joinBtn.disabled = false;
-    joinBtn.querySelector('.button-text').textContent = 'Join Now';
-    loading.style.display = 'none';
 }
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
     // Attach event listener to join button
-    document.getElementById('joinBtn').addEventListener('click', function() {
-        if (!isProcessingJoin) {
-            isProcessingJoin = true;
-            showAdPage();
+    document.getElementById('joinBtn').addEventListener('click', handleJoin);
+    
+    // Initialize automatic ads in background
+    setTimeout(() => {
+        if (isAdSDKAvailable()) {
+            show_10391340({
+                type: 'inApp',
+                inAppSettings: {
+                    frequency: 2,
+                    capping: 0.1,
+                    interval: 30,
+                    timeout: 5,
+                    everyPage: false
+                }
+            });
         }
-    });
+    }, 3000);
 });
 
 // Prevent accidental page unload

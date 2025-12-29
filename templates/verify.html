@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TEAM SECRET — Verification</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Rewarded Interstitial Ad SDK -->
+<script src='//libtl.com/sdk.js' data-zone='10391340' data-sdk='show_10391340'></script>
 
 <style>
 :root{
@@ -15,6 +18,9 @@
   --glow-cyan:rgba(0,255,255,0.8);
   --glow-purple:rgba(184,0,255,0.6);
   --neon-green:#00ff00;
+  --neon-red:#ff0000;
+  --neon-orange:#ff8c00;
+  --neon-gold:#ffd700;
 }
 
 *{margin:0;padding:0;box-sizing:border-box}
@@ -30,6 +36,180 @@ body{
   position:relative;
   padding:20px;
   overflow-x:hidden;
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;
+  user-select:none;
+}
+
+/* Close Prevention Overlay */
+#close-overlay{
+  display:none;
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.9);
+  z-index:9999;
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
+  color:white;
+  text-align:center;
+  padding:20px;
+}
+
+.close-message{
+  font-size:1.2em;
+  margin-bottom:20px;
+  color:#00ffff;
+  text-shadow:0 0 10px #00ffff;
+  background:rgba(0,0,0,0.7);
+  padding:20px;
+  border-radius:15px;
+  border:2px solid #00ffff;
+  max-width:400px;
+}
+
+.continue-button{
+  padding:15px 30px;
+  background:linear-gradient(135deg,#00ffff,#00aaff);
+  color:white;
+  border:none;
+  border-radius:25px;
+  font-size:1.1em;
+  cursor:pointer;
+  margin-top:20px;
+  font-weight:bold;
+  box-shadow:0 0 20px #00ffff;
+}
+
+/* Animated Grid Background */
+#grid-bg{
+  position:fixed;
+  inset:0;
+  background-image:
+    linear-gradient(rgba(0,255,255,0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,255,0.1) 1px, transparent 1px);
+  background-size:50px 50px;
+  animation:gridMove 20s linear infinite;
+  z-index:-10;
+}
+
+@keyframes gridMove{
+  0%{background-position:0 0}
+  100%{background-position:50px 50px}
+}
+
+/* Matrix Rain */
+#matrix-bg{
+  position:fixed;
+  inset:0;
+  z-index:-9;
+  opacity:0.4;
+}
+
+/* Floating Particles */
+.particles{
+  position:fixed;
+  inset:0;
+  z-index:-8;
+  pointer-events:none;
+  overflow:hidden;
+}
+
+.particle{
+  position:absolute;
+  width:4px;
+  height:4px;
+  background:var(--neon-cyan);
+  border-radius:50%;
+  animation:float-particle 8s infinite ease-in-out;
+}
+
+@keyframes float-particle{
+  0%,100%{
+    transform:translateY(0) translateX(0);
+    opacity:0.3;
+  }
+  50%{
+    transform:translateY(-100px) translateX(50px);
+    opacity:1;
+  }
+}
+
+/* Rotating Rings */
+.ring-container{
+  position:fixed;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:-7;
+  pointer-events:none;
+  width:100%;
+  height:100%;
+}
+
+.neon-ring{
+  position:absolute;
+  border-radius:50%;
+  border:2px solid;
+  filter:blur(1px);
+}
+
+.ring1{
+  width:min(600px, 90vw);
+  height:min(600px, 90vw);
+  border-color:rgba(0,255,255,0.3);
+  animation:spin 20s linear infinite;
+  box-shadow:0 0 40px var(--glow-cyan);
+}
+
+.ring2{
+  width:min(450px, 70vw);
+  height:min(450px, 70vw);
+  border-color:rgba(184,0,255,0.3);
+  animation:spin 15s linear infinite reverse;
+  box-shadow:0 0 40px var(--glow-purple);
+}
+
+.ring3{
+  width:min(300px, 50vw);
+  height:min(300px, 50vw);
+  border-color:rgba(255,0,255,0.3);
+  animation:spin 25s linear infinite;
+  box-shadow:0 0 40px rgba(255,0,255,0.5);
+}
+
+@keyframes spin{
+  0%{transform:rotate(0deg)}
+  100%{transform:rotate(360deg)}
+}
+
+/* Radial Glow */
+.radial-glow{
+  position:fixed;
+  inset:0;
+  background:radial-gradient(
+    circle at center,
+    rgba(0,255,255,0.15) 0%,
+    rgba(184,0,255,0.1) 35%,
+    transparent 70%
+  );
+  z-index:-6;
+  animation:pulse-glow 4s infinite alternate ease-in-out;
+}
+
+@keyframes pulse-glow{
+  0%{
+    opacity:0.5;
+    transform:scale(0.95);
+  }
+  100%{
+    opacity:1;
+    transform:scale(1.05);
+  }
 }
 
 /* Main Container */
@@ -42,6 +222,7 @@ body{
   backdrop-filter:blur(20px);
   text-align:center;
   position:relative;
+  animation:float-container 5s ease-in-out infinite alternate;
   box-shadow:
     0 0 60px rgba(0,255,255,0.4),
     0 0 100px rgba(184,0,255,0.3),
@@ -55,6 +236,39 @@ body{
   display:flex;
   flex-direction:column;
   justify-content:center;
+}
+
+@keyframes float-container{
+  0%{
+    transform:translateY(0) scale(1);
+  }
+  100%{
+    transform:translateY(-15px) scale(1.02);
+  }
+}
+
+.container::before{
+  content:'';
+  position:absolute;
+  top:-50%;
+  left:-50%;
+  width:200%;
+  height:200%;
+  background:conic-gradient(
+    from 0deg,
+    transparent,
+    rgba(0,255,255,0.3),
+    transparent,
+    rgba(184,0,255,0.3),
+    transparent
+  );
+  animation:rotate-border 6s linear infinite;
+  z-index:-1;
+}
+
+@keyframes rotate-border{
+  0%{transform:rotate(0deg)}
+  100%{transform:rotate(360deg)}
 }
 
 /* Logo/Badge */
@@ -91,6 +305,17 @@ body{
   }
 }
 
+.logo-badge::before{
+  content:'';
+  position:absolute;
+  inset:-5px;
+  border-radius:50%;
+  border:2px solid transparent;
+  border-top-color:var(--neon-cyan);
+  border-right-color:var(--neon-purple);
+  animation:spin 3s linear infinite;
+}
+
 .logo-badge img{
   width:100%;
   height:100%;
@@ -110,7 +335,17 @@ h1{
   margin:0 0 15px 0;
   letter-spacing:4px;
   text-shadow:0 0 30px var(--glow-cyan);
+  animation:glow-title 3s infinite alternate ease-in-out;
   line-height:1.2;
+}
+
+@keyframes glow-title{
+  0%{
+    filter:drop-shadow(0 0 10px var(--glow-cyan));
+  }
+  100%{
+    filter:drop-shadow(0 0 25px var(--glow-purple));
+  }
 }
 
 /* Status */
@@ -126,13 +361,86 @@ h1{
   padding:0 40px;
 }
 
+.status::before, .status::after{
+  content:'';
+  position:absolute;
+  width:30px;
+  height:2px;
+  background:linear-gradient(90deg, transparent, var(--neon-cyan));
+  top:50%;
+}
+
+.status::before{
+  left:0;
+}
+
+.status::after{
+  right:0;
+  background:linear-gradient(90deg, var(--neon-cyan), transparent);
+}
+
+/* Full Name Display */
+.fullname-display{
+  font-size:clamp(1.2em, 4vw, 1.4em);
+  color:var(--neon-cyan);
+  margin:0 0 30px 0;
+  font-weight:600;
+  letter-spacing:1px;
+  text-shadow:0 0 15px var(--glow-cyan);
+  font-family:'Orbitron', sans-serif;
+  animation:pulse-name 3s infinite ease-in-out;
+  min-height:30px;
+  line-height:1.3;
+  padding:0 10px;
+  word-wrap:break-word;
+}
+
+@keyframes pulse-name{
+  0%,100%{
+    opacity:0.8;
+    text-shadow:0 0 10px var(--glow-cyan);
+  }
+  50%{
+    opacity:1;
+    text-shadow:
+      0 0 20px var(--glow-cyan),
+      0 0 10px var(--glow-purple);
+  }
+}
+
+/* Scanning Animation */
+.scanning{
+  position:relative;
+  padding:8px 0;
+  margin:20px 0;
+}
+
+.scan-line{
+  width:100%;
+  height:2px;
+  background:linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+  animation:scan 2s infinite ease-in-out;
+  box-shadow:0 0 10px var(--glow-cyan);
+}
+
+@keyframes scan{
+  0%,100%{
+    opacity:0.3;
+    transform:scaleX(0.5);
+  }
+  50%{
+    opacity:1;
+    transform:scaleX(1);
+  }
+}
+
 /* Buttons */
-.verify-button, .join-now-button{
+.verify-button, .join-channel-button, .join-now-button, .check-again-button{
   padding:clamp(16px, 4vw, 20px) clamp(30px, 6vw, 60px);
   font-size:clamp(1.1em, 3vw, 1.3em);
   border-radius:50px;
   border:2px solid var(--neon-cyan);
-  background:linear-gradient(135deg, rgba(0,255,255,0.3), rgba(184,0,255,0.3));
+  background:linear-gradient(135deg, rgba(0,255,255,0.2), rgba(184,0,255,0.2));
   color:#fff;
   cursor:pointer;
   transition:all 0.3s ease;
@@ -145,21 +453,42 @@ h1{
   box-shadow:
     0 0 20px var(--glow-cyan),
     inset 0 0 20px rgba(0,255,255,0.1);
-  display:block;
+  display:inline-block;
   text-decoration:none;
-  margin:15px auto;
-  width:100%;
-  max-width:300px;
+  margin:10px 5px;
+  min-width:200px;
 }
 
-.verify-button:hover, .join-now-button:hover{
-  background:linear-gradient(135deg, rgba(0,255,255,0.5), rgba(184,0,255,0.5));
+.verify-button::before, .join-channel-button::before, .join-now-button::before, .check-again-button::before{
+  content:'';
+  position:absolute;
+  top:50%;
+  left:50%;
+  width:0;
+  height:0;
+  border-radius:50%;
+  background:radial-gradient(circle, var(--neon-cyan), transparent);
+  transform:translate(-50%, -50%);
+  transition:width 0.6s, height 0.6s;
+}
+
+.verify-button:hover::before, .join-channel-button:hover::before, .join-now-button:hover::before, .check-again-button:hover::before{
+  width:300px;
+  height:300px;
+}
+
+.verify-button:hover, .join-channel-button:hover, .join-now-button:hover, .check-again-button:hover{
+  background:linear-gradient(135deg, rgba(0,255,255,0.4), rgba(184,0,255,0.4));
   transform:translateY(-3px) scale(1.05);
   box-shadow:
     0 0 40px var(--glow-cyan),
     0 0 60px var(--glow-purple),
     0 10px 30px rgba(0,0,0,0.5);
   border-color:var(--neon-purple);
+}
+
+.verify-button:active, .join-channel-button:active, .join-now-button:active, .check-again-button:active{
+  transform:translateY(0) scale(1);
 }
 
 .verify-button:disabled, .join-now-button:disabled{
@@ -173,10 +502,311 @@ h1{
   background:linear-gradient(135deg, rgba(0,255,255,0.3), rgba(0,100,255,0.3));
 }
 
+.join-channel-button{
+  background:linear-gradient(135deg, rgba(255,165,0,0.3), rgba(255,69,0,0.3));
+  border-color:var(--neon-orange);
+  box-shadow:0 0 20px rgba(255,140,0,0.5);
+  min-width: 120px;
+  padding: 10px 20px;
+  font-size: 0.9em;
+}
+
+.join-channel-button::before{
+  background:radial-gradient(circle, var(--neon-orange), transparent);
+}
+
+.join-channel-button:hover{
+  background:linear-gradient(135deg, rgba(255,165,0,0.5), rgba(255,69,0,0.5));
+  border-color:#ff5500;
+  box-shadow:0 0 40px rgba(255,140,0,0.7), 0 0 60px rgba(255,69,0,0.5);
+}
+
 .join-now-button{
   background:linear-gradient(135deg, rgba(0,255,0,0.3), rgba(0,128,0,0.3));
   border-color:var(--neon-green);
   box-shadow:0 0 20px rgba(0,255,0,0.5);
+}
+
+.join-now-button::before{
+  background:radial-gradient(circle, var(--neon-green), transparent);
+}
+
+.join-now-button:hover{
+  background:linear-gradient(135deg, rgba(0,255,0,0.5), rgba(0,128,0,0.5));
+  border-color:#00cc00;
+  box-shadow:0 0 40px rgba(0,255,0,0.7), 0 0 60px rgba(0,128,0,0.5);
+}
+
+.check-again-button{
+  background:linear-gradient(135deg, rgba(255,255,0,0.3), rgba(255,215,0,0.3));
+  border-color:var(--neon-gold);
+  box-shadow:0 0 20px rgba(255,215,0,0.5);
+}
+
+.check-again-button::before{
+  background:radial-gradient(circle, var(--neon-gold), transparent);
+}
+
+.check-again-button:hover{
+  background:linear-gradient(135deg, rgba(255,255,0,0.5), rgba(255,215,0,0.5));
+  border-color:#ffed00;
+  box-shadow:0 0 40px rgba(255,215,0,0.7), 0 0 60px rgba(255,215,0,0.5);
+}
+
+/* Skip Ad Button */
+.skip-ad-button {
+  padding: 12px 25px;
+  font-size: 1em;
+  border-radius: 50px;
+  border: 2px solid #ff8c00;
+  background: linear-gradient(135deg, rgba(255, 140, 0, 0.3), rgba(255, 69, 0, 0.3));
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 15px rgba(255, 140, 0, 0.5);
+  display: none;
+  margin-top: 10px;
+}
+
+.skip-ad-button:hover {
+  background: linear-gradient(135deg, rgba(255, 140, 0, 0.5), rgba(255, 69, 0, 0.5));
+  transform: translateY(-2px);
+  box-shadow: 0 0 25px rgba(255, 140, 0, 0.7);
+}
+
+/* Channels List */
+.channels-container {
+  width: 100%;
+  max-width: 500px;
+  margin: 20px auto;
+}
+
+.channels-list {
+  background: rgba(0, 20, 40, 0.3);
+  border-radius: 15px;
+  padding: 15px;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.channel-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 15px;
+  margin-bottom: 10px;
+  background: linear-gradient(135deg, rgba(0, 40, 80, 0.4), rgba(20, 0, 40, 0.4));
+  border-radius: 10px;
+  border-left: 3px solid var(--neon-cyan);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.channel-item:last-child {
+  margin-bottom: 0;
+}
+
+.channel-item:hover {
+  background: linear-gradient(135deg, rgba(0, 60, 120, 0.5), rgba(30, 0, 60, 0.5));
+  transform: translateX(5px);
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+}
+
+.channel-item.joined {
+  border-left-color: var(--neon-green);
+  background: linear-gradient(135deg, rgba(0, 80, 40, 0.4), rgba(0, 40, 20, 0.4));
+}
+
+.channel-item.not-joined {
+  border-left-color: var(--neon-orange);
+  background: linear-gradient(135deg, rgba(80, 40, 0, 0.4), rgba(40, 20, 0, 0.4));
+}
+
+.channel-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 15px;
+  object-fit: cover;
+  border: 2px solid rgba(0, 255, 255, 0.3);
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
+.channel-info {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.channel-details {
+  flex: 1;
+}
+
+.channel-name {
+  font-weight: 600;
+  color: white;
+  font-size: 1.1em;
+  margin-bottom: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.channel-id {
+  font-size: 0.8em;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: monospace;
+}
+
+.channel-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-indicator {
+  font-size: 1.2em;
+  font-weight: bold;
+}
+
+.status-joined {
+  color: var(--neon-green);
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+.status-not-joined {
+  color: var(--neon-orange);
+  text-shadow: 0 0 10px rgba(255, 165, 0, 0.5);
+}
+
+.status-text {
+  font-size: 0.9em;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+.text-joined {
+  background: rgba(0, 255, 0, 0.2);
+  color: var(--neon-green);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+}
+
+.text-not-joined {
+  background: rgba(255, 165, 0, 0.2);
+  color: var(--neon-orange);
+  border: 1px solid rgba(255, 165, 0, 0.3);
+}
+
+/* Progress Bar */
+.progress-container {
+  width: 100%;
+  max-width: 500px;
+  margin: 20px auto 10px;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 1.1em;
+}
+
+.progress-label {
+  color: white;
+  font-weight: 600;
+}
+
+.progress-percentage {
+  color: var(--neon-cyan);
+  font-weight: 700;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
+  border-radius: 5px;
+  width: 0%;
+  transition: width 1s ease-in-out;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+/* Required Channels Info */
+.required-info {
+  font-size: 0.9em;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 10px 0 20px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+  border: 1px solid rgba(0, 255, 255, 0.1);
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.required-info i {
+  color: var(--neon-cyan);
+  margin-right: 8px;
+}
+
+/* Result Messages */
+.result-message{
+  font-size:clamp(1em, 3vw, 1.2em);
+  color:#fff;
+  margin:15px 0;
+  padding:15px;
+  border-radius:10px;
+  background:rgba(0,0,0,0.3);
+  border-left:3px solid var(--neon-cyan);
+  animation:fadeIn 0.5s ease-out;
+  line-height:1.5;
+  word-wrap:break-word;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@keyframes fadeIn{
+  from{
+    opacity:0;
+    transform:translateY(-10px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
+.success-message{
+  border-left-color:var(--neon-green);
+  background:rgba(0,255,0,0.1);
+}
+
+.error-message{
+  border-left-color:var(--neon-red);
+  background:rgba(255,0,0,0.1);
+}
+
+.warning-message{
+  border-left-color:var(--neon-orange);
+  background:rgba(255,165,0,0.1);
 }
 
 /* Loading Animation */
@@ -194,32 +824,6 @@ h1{
   50%{opacity:1}
 }
 
-/* Result Messages */
-.result-message{
-  font-size:clamp(1em, 3vw, 1.2em);
-  color:#fff;
-  margin:15px 0;
-  padding:15px;
-  border-radius:10px;
-  background:rgba(0,0,0,0.3);
-  border-left:3px solid var(--neon-cyan);
-  line-height:1.5;
-  word-wrap:break-word;
-  max-width:500px;
-  margin-left:auto;
-  margin-right:auto;
-}
-
-.success-message{
-  border-left-color:var(--neon-green);
-  background:rgba(0,255,0,0.1);
-}
-
-.warning-message{
-  border-left-color:#ff8c00;
-  background:rgba(255,165,0,0.1);
-}
-
 /* Button Container */
 .button-container{
   display:flex;
@@ -228,91 +832,96 @@ h1{
   gap:15px;
   margin:20px 0;
   width:100%;
+  animation:fadeIn 0.5s ease-out;
 }
 
-/* Channels List */
-.channels-container {
-  width:100%;
-  max-width:500px;
-  margin:20px auto;
-}
-
-.channel-item {
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:12px 15px;
-  margin-bottom:10px;
-  background:linear-gradient(135deg, rgba(0,40,80,0.4), rgba(20,0,40,0.4));
-  border-radius:10px;
-  border-left:3px solid var(--neon-cyan);
-}
-
-.channel-item.joined {
-  border-left-color:var(--neon-green);
-  background:linear-gradient(135deg, rgba(0,80,40,0.4), rgba(0,40,20,0.4));
-}
-
-.channel-item.not-joined {
-  border-left-color:#ff8c00;
-  background:linear-gradient(135deg, rgba(80,40,0,0.4), rgba(40,20,0,0.4));
-}
-
-.channel-info {
-  display:flex;
-  align-items:center;
+/* Content Area */
+.content-area{
   flex:1;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  width:100%;
 }
 
-.channel-name {
-  font-weight:600;
-  color:white;
-  font-size:1.1em;
-  margin-bottom:3px;
-  text-transform:uppercase;
-  letter-spacing:0.5px;
+/* Initial State */
+#initial-state{
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
 }
 
-/* Ad Notice */
-.ad-notice{
-  background:rgba(255,215,0,0.1);
-  border:1px solid rgba(255,215,0,0.3);
-  border-radius:10px;
-  padding:15px;
-  margin:15px 0;
-  font-size:0.9em;
-  color:#ffd700;
+/* Result Section */
+#result-section{
+  width:100%;
+  display:none;
+  flex-direction:column;
+  align-items:center;
 }
 
-.ad-notice i{
-  margin-right:8px;
+/* Action Buttons */
+#action-buttons{
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:15px;
 }
 
-/* Instructions Box */
-.instructions{
-  background:rgba(0,40,80,0.5);
-  border:2px solid var(--neon-cyan);
-  border-radius:15px;
-  padding:20px;
-  margin:20px 0;
-  text-align:left;
-  font-size:0.95em;
-  line-height:1.6;
+/* Warning Icon */
+.warning-icon{
+  font-size:3em;
+  margin-bottom:15px;
+  animation:pulse-warning 2s infinite ease-in-out;
 }
 
-.instructions h3{
-  color:var(--neon-cyan);
-  margin-bottom:10px;
-  font-family:'Orbitron', sans-serif;
+@keyframes pulse-warning{
+  0%,100%{
+    transform:scale(1);
+    opacity:0.8;
+  }
+  50%{
+    transform:scale(1.2);
+    opacity:1;
+  }
 }
 
-.instructions ul{
-  padding-left:20px;
-  margin:10px 0;
+/* Join All Button */
+.join-all-button {
+  background: linear-gradient(135deg, rgba(255,0,255,0.3), rgba(184,0,255,0.3));
+  border-color: var(--neon-pink);
+  box-shadow: 0 0 20px rgba(255,0,255,0.5);
 }
 
-.instructions li{
-  margin-bottom:8px;
+.join-all-button::before {
+  background: radial-gradient(circle, var(--neon-pink), transparent);
+}
+
+.join-all-button:hover {
+  background: linear-gradient(135deg, rgba(255,0,255,0.5), rgba(184,0,255,0.5));
+  border-color: #ff00ff;
+  box-shadow: 0 0 40px rgba(255,0,255,0.7), 0 0 60px rgba(184,0,255,0.5);
+}
+
+/* Scrollbar styling */
+.channels-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.channels-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.channels-list::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, var(--neon-cyan), var(--neon-purple));
+  border-radius: 4px;
+}
+
+.channels-list::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, var(--neon-purple), var(--neon-pink));
 }
 
 /* Responsive */
@@ -325,380 +934,727 @@ h1{
     max-width:95vw;
   }
   .status{padding:0 20px}
-  .verify-button, .join-now-button{
+  .verify-button, .join-channel-button, .join-now-button, .check-again-button{
     padding:15px 25px;
     font-size:1em;
     min-width:180px;
     max-width:100%;
+  }
+  .button-container, #action-buttons{
+    gap:12px;
+  }
+  .result-message{
+    padding:12px;
+    font-size:1em;
+  }
+  .channels-list {
+    padding: 12px;
+  }
+  .channel-item {
+    padding: 10px 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .channel-info {
+    width: 100%;
+  }
+  .channel-status {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .join-channel-button {
+    min-width: 100px;
+    padding: 8px 15px;
+    font-size: 0.85em;
+  }
+}
+
+@media(max-height:600px){
+  .container{
+    padding:25px 20px;
+    min-height:auto;
+  }
+  .logo-badge{
+    width:70px;
+    height:70px;
+    margin-bottom:15px;
+  }
+  h1{
+    font-size:2em;
+    margin-bottom:10px;
+  }
+  .fullname-display{
+    margin-bottom:20px;
+    font-size:1.1em;
+  }
+  .scanning{
+    margin:15px 0;
+  }
+  .channels-list {
+    max-height: 200px;
   }
 }
 </style>
 </head>
 <body>
 
+<!-- Close Prevention Overlay -->
+<div id="close-overlay">
+  <div class="close-message">
+    <h3>⚠️ WebApp Closing Prevented</h3>
+    <p>The verification process is in progress. Click "Continue" to resume.</p>
+    <p>Auto-continue in 5 seconds...</p>
+  </div>
+  <button class="continue-button" onclick="reopenWebApp()">Continue</button>
+</div>
+
+<div id="grid-bg"></div>
+<canvas id='matrix-bg'></canvas>
+<div class='particles'></div>
+
+<div class='ring-container'>
+  <div class='neon-ring ring1'></div>
+  <div class='neon-ring ring2'></div>
+  <div class='neon-ring ring3'></div>
+</div>
+
+<div class='radial-glow'></div>
+
 <div class='container'>
   <div class='logo-badge'>
     <img src='https://i.ibb.co/8g2YxXq6/tmpyb9cwaub.jpg' alt='Team Secret Logo'>
   </div>
-  
   <h1>TEAM SECRET</h1>
   <div class='status'>Channel Verification</div>
-  <div id="fullname" class='fullname-display'>User</div>
+  <div id="fullname" class='fullname-display'>Loading...</div>
   
-  <!-- Initial State -->
-  <div id="initial-state" class='button-container'>
-    <div class="instructions">
-      <h3>📋 How to Access:</h3>
-      <p>Follow these steps to unlock the protected content:</p>
-      <ul>
-        <li>1. Click "Verify Membership" below</li>
-        <li>2. Join the required channels (if any)</li>
-        <li>3. Watch a short advertisement</li>
-        <li>4. Get redirected to the protected content</li>
-      </ul>
-      <p><strong>Note:</strong> You'll need to watch a 5-10 second ad to access the content.</p>
-    </div>
-    
-    <button id="verifyBtn" class='verify-button'>
-      <span class='button-text'>Verify Membership</span>
-    </button>
+  <div class='scanning'>
+    <div class='scan-line'></div>
   </div>
   
-  <!-- Verification Result -->
-  <div id="result-section" style="display:none;">
-    <div id="result-message" class='result-message'></div>
-    
-    <!-- Channels List -->
-    <div id="channels-container" class="channels-container" style="display:none;">
-      <div id="channels-list"></div>
+  <div class='content-area'>
+    <!-- Initial State: Verify Button -->
+    <div id="initial-state" class='button-container'>
+      <div class="required-info">
+        <i class="fas fa-info-circle"></i> You need to join all required channels to access the protected content
+      </div>
+      <button id="verifyBtn" class='verify-button'>
+        <span class='button-text'>Verify Membership</span>
+      </button>
     </div>
     
-    <!-- Ad Notice -->
-    <div class="ad-notice" id="adNotice" style="display:none;">
-      <i class="fas fa-ad"></i> Please watch a short ad to access the protected content
+    <!-- Verification Result -->
+    <div id="result-section">
+      <div id="result-message" class='result-message'></div>
+      
+      <!-- Progress Bar -->
+      <div id="progress-container" class="progress-container" style="display: none;">
+        <div class="progress-header">
+          <span class="progress-label">Verification Progress</span>
+          <span id="progress-percentage" class="progress-percentage">0%</span>
+        </div>
+        <div class="progress-bar">
+          <div id="progress-fill" class="progress-fill"></div>
+        </div>
+      </div>
+      
+      <!-- Channels List -->
+      <div id="channels-container" class="channels-container" style="display: none;">
+        <div id="channels-list" class="channels-list"></div>
+      </div>
+      
+      <!-- Skip Ad Button -->
+      <button id="skipAdBtn" class='skip-ad-button'>
+        <span class='button-text'>Skip Ad & Access Content</span>
+      </button>
+      
+      <!-- Action Buttons -->
+      <div id="action-buttons" class='button-container'></div>
     </div>
     
-    <!-- Action Buttons -->
-    <div id="action-buttons" class='button-container'></div>
-    
-    <!-- Manual Link -->
-    <div id="manualLink" style="display:none; margin-top:20px;">
-      <p style="color:#aaa; font-size:0.9em; margin-bottom:10px;">If automatic redirect doesn't work:</p>
-      <a href="#" id="directLink" style="color:#00ffff; text-decoration:none; word-break:break-all; font-size:0.9em;">Click here to access manually</a>
-    </div>
+    <!-- Loading -->
+    <div id="loading" class='loading'>Processing verification...</div>
   </div>
-  
-  <!-- Loading -->
-  <div id="loading" class='loading'>Processing...</div>
 </div>
 
-<!-- SIMPLE SCRIPT -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>
-const token = "{{ token }}";
-let currentUserId = null;
+// Telegram WebApp Integration - FIXED
+const tg = window.Telegram.WebApp;
 
-// Display user info
-try {
-    const urlParams = new URLSearchParams(window.location.search);
-    const userId = urlParams.get('user_id');
-    const userName = urlParams.get('username');
-    
-    if (userId) currentUserId = userId;
-    if (userName) {
-        document.getElementById('fullname').textContent = decodeURIComponent(userName);
+// Initialize WebApp with closing prevention
+tg.ready();
+tg.expand();
+
+// DISABLE closing confirmation to prevent accidental closing
+tg.disableClosingConfirmation();
+
+// Store original close function
+let isProcessingJoin = false;
+let isAdShowing = false;
+const originalClose = tg.close;
+
+// Override close function to prevent accidental closing
+tg.close = function() {
+    if (isProcessingJoin || isAdShowing) {
+        console.log('Prevented WebApp close during verification process');
+        showCloseOverlay();
+        return false;
     }
-} catch(e) {
-    console.log('Could not get user info');
+    return originalClose.call(tg);
+};
+
+// Function to show overlay when WebApp tries to close
+function showCloseOverlay() {
+    document.getElementById('close-overlay').style.display = 'flex';
+    setTimeout(() => {
+        hideCloseOverlay();
+    }, 5000);
 }
 
-// Elements
-const verifyBtn = document.getElementById('verifyBtn');
-const loading = document.getElementById('loading');
+function hideCloseOverlay() {
+    document.getElementById('close-overlay').style.display = 'none';
+}
+
+function reopenWebApp() {
+    hideCloseOverlay();
+    tg.expand();
+}
+
+const token = "{{ token }}";
+
+// Display user's full name
+const user = tg.initDataUnsafe?.user;
+const fullnameElement = document.getElementById('fullname');
+
+if (user) {
+    let displayName = user.first_name || '';
+    if (user.last_name) {
+        displayName += ' ' + user.last_name;
+    }
+    if (!displayName.trim() && user.username) {
+        displayName = `@${user.username}`;
+    }
+    fullnameElement.textContent = displayName.trim() || 'User';
+} else {
+    fullnameElement.textContent = 'User';
+}
+
+// Check if ad SDK is available
+function isAdSDKAvailable() {
+    return typeof show_10391340 === 'function';
+}
+
+// Function to get the protected link
+async function getProtectedLink() {
+    try {
+        const response = await fetch(`/getgrouplink/${token}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data.url;
+    } catch (error) {
+        console.error('Failed to get protected link:', error);
+        return null;
+    }
+}
+
+// Function to open Telegram link SAFELY
+function openTelegramLink(url) {
+    if (!url) return false;
+    
+    try {
+        // First try the Telegram WebApp method
+        tg.openTelegramLink(url);
+        
+        // Then close WebApp after a delay
+        setTimeout(() => {
+            isProcessingJoin = false;
+            isAdShowing = false;
+            try {
+                originalClose.call(tg);
+            } catch (e) {
+                console.log('WebApp already closed');
+            }
+        }, 2000);
+        
+        return true;
+    } catch (error) {
+        console.error('Failed to open Telegram link:', error);
+        return false;
+    }
+}
+
+// Main join function - FIXED
+async function joinGroup() {
+    if (isProcessingJoin) return;
+    
+    const joinBtn = document.getElementById('joinNowBtn');
+    const loading = document.getElementById('loading');
+    const skipBtn = document.getElementById('skipAdBtn');
+    
+    isProcessingJoin = true;
+    if (joinBtn) {
+        joinBtn.disabled = true;
+        joinBtn.querySelector('.button-text').textContent = 'Processing...';
+    }
+    loading.style.display = 'block';
+    loading.textContent = 'Getting protected link...';
+    
+    // Hide skip button if visible
+    if (skipBtn) skipBtn.style.display = 'none';
+    
+    try {
+        // Get the protected link FIRST (before any ads)
+        loading.textContent = 'Getting protected link...';
+        const groupUrl = await getProtectedLink();
+        
+        if (!groupUrl) {
+            throw new Error('Could not get protected link');
+        }
+        
+        // Store the protected URL for later use
+        window.protectedUrl = groupUrl;
+        
+        // Check if ad SDK is available
+        if (isAdSDKAvailable()) {
+            loading.textContent = 'Please wait, loading content...';
+            isAdShowing = true;
+            
+            // Try to show ad with timeout
+            let adCompleted = false;
+            const adTimeout = setTimeout(() => {
+                if (!adCompleted) {
+                    console.log('Ad timeout, proceeding without ad');
+                    adCompleted = true;
+                    isAdShowing = false;
+                    completeAccessProcess();
+                }
+            }, 10000); // 10 second timeout for ad
+            
+            try {
+                // Try to show ad
+                show_10391340('pop').then(() => {
+                    clearTimeout(adTimeout);
+                    adCompleted = true;
+                    isAdShowing = false;
+                    loading.textContent = 'Thank you! Opening protected content...';
+                    setTimeout(() => {
+                        completeAccessProcess();
+                    }, 1000);
+                }).catch(error => {
+                    clearTimeout(adTimeout);
+                    console.error('Ad error:', error);
+                    adCompleted = true;
+                    isAdShowing = false;
+                    loading.textContent = 'Opening protected content...';
+                    setTimeout(() => {
+                        completeAccessProcess();
+                    }, 500);
+                });
+            } catch (adError) {
+                clearTimeout(adTimeout);
+                console.error('Ad SDK error:', adError);
+                adCompleted = true;
+                isAdShowing = false;
+                completeAccessProcess();
+            }
+        } else {
+            // No ad SDK, just open protected content
+            loading.textContent = 'Opening protected content...';
+            setTimeout(() => {
+                completeAccessProcess();
+            }, 500);
+        }
+        
+    } catch (error) {
+        console.error('Access process error:', error);
+        alert('Error: ' + error.message);
+        resetAccessButton();
+    }
+}
+
+// Function to complete the access process
+function completeAccessProcess() {
+    const loading = document.getElementById('loading');
+    const joinBtn = document.getElementById('joinNowBtn');
+    
+    // Update loading text
+    loading.textContent = 'Redirecting to protected content...';
+    
+    // Open the protected link
+    setTimeout(() => {
+        const opened = openTelegramLink(window.protectedUrl);
+        if (!opened) {
+            // Fallback: Show the link
+            alert(`Please access using this link: ${window.protectedUrl}`);
+            resetAccessButton();
+        }
+    }, 1500);
+    
+    // Auto-reset after 15 seconds if something goes wrong
+    setTimeout(() => {
+        if (isProcessingJoin) {
+            resetAccessButton();
+            alert('Process timed out. Please try again.');
+        }
+    }, 15000);
+}
+
+// Function to reset access button
+function resetAccessButton() {
+    const joinBtn = document.getElementById('joinNowBtn');
+    const loading = document.getElementById('loading');
+    
+    isProcessingJoin = false;
+    isAdShowing = false;
+    if (joinBtn) {
+        joinBtn.disabled = false;
+        joinBtn.querySelector('.button-text').textContent = 'Access Protected Content';
+    }
+    loading.style.display = 'none';
+}
+
+// Function for direct access without ad
+async function accessWithoutAd() {
+    if (isProcessingJoin) return;
+    
+    const joinBtn = document.getElementById('joinNowBtn');
+    const loading = document.getElementById('loading');
+    const skipBtn = document.getElementById('skipAdBtn');
+    
+    isProcessingJoin = true;
+    if (joinBtn) {
+        joinBtn.disabled = true;
+    }
+    loading.style.display = 'block';
+    loading.textContent = 'Getting protected link...';
+    if (skipBtn) skipBtn.style.display = 'none';
+    
+    try {
+        const groupUrl = await getProtectedLink();
+        
+        if (groupUrl) {
+            loading.textContent = 'Opening protected content...';
+            window.protectedUrl = groupUrl;
+            setTimeout(() => {
+                const opened = openTelegramLink(groupUrl);
+                if (!opened) {
+                    alert(`Please access: ${groupUrl}`);
+                    resetAccessButton();
+                }
+            }, 500);
+        } else {
+            alert('Error: Could not get protected link');
+            resetAccessButton();
+        }
+    } catch (error) {
+        console.error('Skip ad error:', error);
+        alert('Error: ' + error.message);
+        resetAccessButton();
+    }
+}
+
+// DOM Elements
 const initialState = document.getElementById('initial-state');
 const resultSection = document.getElementById('result-section');
 const resultMessage = document.getElementById('result-message');
 const actionButtons = document.getElementById('action-buttons');
 const channelsContainer = document.getElementById('channels-container');
+const progressContainer = document.getElementById('progress-container');
+const progressFill = document.getElementById('progress-fill');
+const progressPercentage = document.getElementById('progress-percentage');
 const channelsList = document.getElementById('channels-list');
-const adNotice = document.getElementById('adNotice');
-const manualLink = document.getElementById('manualLink');
+const loading = document.getElementById('loading');
+const verifyBtn = document.getElementById('verifyBtn');
 
-// Verify membership
+function showLoading() {
+    initialState.style.display = 'none';
+    resultSection.style.display = 'none';
+    channelsContainer.style.display = 'none';
+    progressContainer.style.display = 'none';
+    loading.style.display = 'block';
+}
+
+function updateProgress(joinedCount, totalCount) {
+    if (totalCount > 0) {
+        const percentage = Math.round((joinedCount / totalCount) * 100);
+        progressFill.style.width = `${percentage}%`;
+        progressPercentage.textContent = `${percentage}%`;
+        progressContainer.style.display = 'block';
+    } else {
+        progressContainer.style.display = 'none';
+    }
+}
+
+function getChannelLogo(channel) {
+    if (channel.logo_url) {
+        return channel.logo_url + '?t=' + Date.now();
+    }
+    
+    let logo = 'https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg';
+    
+    const channelLogos = {
+        'team secret': 'https://i.ibb.co/8g2YxXq6/tmpyb9cwaub.jpg',
+        'teamsecret': 'https://i.ibb.co/8g2YxXq6/tmpyb9cwaub.jpg',
+        'crypto': 'https://cdn-icons-png.flaticon.com/512/6001/6001536.png',
+        'news': 'https://cdn-icons-png.flaticon.com/512/2965/2965879.png',
+        'announcements': 'https://cdn-icons-png.flaticon.com/512/3095/3095583.png'
+    };
+    
+    const channelTitle = channel.channel_title || channel.display_name || '';
+    const channelLower = channelTitle.toLowerCase();
+    for (const [key, logoUrl] of Object.entries(channelLogos)) {
+        if (channelLower.includes(key)) {
+            return logoUrl;
+        }
+    }
+    
+    return logo;
+}
+
+function formatChannelName(channel) {
+    if (channel.startsWith('@')) {
+        return channel.substring(1).replace(/_/g, ' ').toUpperCase();
+    } else if (channel.startsWith('-100')) {
+        return `PRIVATE CHANNEL (${channel.slice(-6)})`;
+    } else {
+        return channel.toUpperCase();
+    }
+}
+
+function createChannelsList(channels) {
+    channelsList.innerHTML = '';
+    
+    if (!channels || channels.length === 0) {
+        channelsContainer.style.display = 'none';
+        return 0;
+    }
+    
+    let joinedCount = 0;
+    
+    channels.forEach((channel) => {
+        const channelItem = document.createElement('div');
+        const channelTitle = channel.channel_title || channel.display_name || formatChannelName(channel.channel);
+        const isJoined = channel.is_member || false;
+        
+        if (isJoined) joinedCount++;
+        
+        channelItem.className = `channel-item ${isJoined ? 'joined' : 'not-joined'}`;
+        channelItem.innerHTML = `
+            <div class="channel-info">
+                <img src="${getChannelLogo(channel)}" alt="${channelTitle}" class="channel-logo">
+                <div class="channel-details">
+                    <div class="channel-name">${channelTitle}</div>
+                    <div class="channel-id">${channel.channel}</div>
+                </div>
+            </div>
+            <div class="channel-status">
+                <div class="status-indicator ${isJoined ? 'status-joined' : 'status-not-joined'}">
+                    ${isJoined ? '✓' : '✗'}
+                </div>
+                <div class="status-text ${isJoined ? 'text-joined' : 'text-not-joined'}">
+                    ${isJoined ? 'Joined' : 'Not Joined'}
+                </div>
+                ${!isJoined && channel.invite_link ? `
+                    <a href="${channel.invite_link}" target="_blank" class="join-channel-button">
+                        <span class="button-text">Join</span>
+                    </a>
+                ` : ''}
+            </div>
+        `;
+        
+        const logoImg = channelItem.querySelector('.channel-logo');
+        logoImg.onerror = function() {
+            this.src = 'https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg';
+            this.onerror = null;
+        };
+        
+        channelsList.appendChild(channelItem);
+    });
+    
+    channelsContainer.style.display = 'block';
+    return joinedCount;
+}
+
+function showResult(message, isSuccess, channels, channelCount) {
+    loading.style.display = 'none';
+    resultMessage.textContent = message;
+    
+    if (isSuccess) {
+        resultMessage.className = 'result-message success-message';
+        
+        const joinedCount = createChannelsList(channels);
+        updateProgress(joinedCount, channelCount);
+        
+        actionButtons.innerHTML = `
+            <button id="joinNowBtn" class="join-now-button">
+                <span class="button-text">Access Protected Content</span>
+            </button>
+            <button id="checkAgainBtn" class="check-again-button">
+                <span class="button-text">Verify Again</span>
+            </button>
+        `;
+    } else {
+        resultMessage.className = 'result-message warning-message';
+        
+        const joinedCount = createChannelsList(channels);
+        updateProgress(joinedCount, channelCount);
+        
+        let buttonsHTML = '';
+        
+        if (channels && channels.length > 0 && joinedCount < channels.length) {
+            buttonsHTML += `
+                <button id="joinAllBtn" class="join-all-button">
+                    <span class="button-text"><i class="fas fa-external-link-alt"></i> Open All Channels</span>
+                </button>
+            `;
+        }
+        
+        buttonsHTML += `
+            <button id="checkAgainBtn" class="check-again-button">
+                <span class="button-text">Verify Membership Again</span>
+            </button>
+        `;
+        
+        actionButtons.innerHTML = buttonsHTML;
+    }
+    
+    initialState.style.display = 'none';
+    resultSection.style.display = 'flex';
+    
+    setTimeout(() => {
+        const joinNowBtn = document.getElementById('joinNowBtn');
+        const checkAgainBtn = document.getElementById('checkAgainBtn');
+        const joinAllBtn = document.getElementById('joinAllBtn');
+        
+        if (joinNowBtn) {
+            joinNowBtn.addEventListener('click', joinGroup);
+        }
+        
+        if (checkAgainBtn) {
+            checkAgainBtn.addEventListener('click', resetToInitialState);
+        }
+        
+        if (joinAllBtn && channels) {
+            joinAllBtn.addEventListener('click', () => {
+                let openedCount = 0;
+                channels.forEach(channel => {
+                    if (!channel.is_member && channel.invite_link) {
+                        window.open(channel.invite_link, '_blank');
+                        openedCount++;
+                    }
+                });
+                
+                if (openedCount > 0) {
+                    setTimeout(() => {
+                        alert(`Opened ${openedCount} channel(s) in new tabs. Please join them and then click "Verify Membership Again".`);
+                    }, 500);
+                } else {
+                    alert("All channels are already joined!");
+                }
+            });
+        }
+    }, 100);
+}
+
+function resetToInitialState() {
+    resultSection.style.display = 'none';
+    channelsContainer.style.display = 'none';
+    progressContainer.style.display = 'none';
+    initialState.style.display = 'flex';
+    verifyBtn.disabled = false;
+    verifyBtn.querySelector('.button-text').textContent = 'Verify Membership';
+}
+
+// Verification function
 async function verifyMembership() {
-    if (!currentUserId) {
-        showResult('Please open this link in Telegram to verify.', false);
+    const user = tg.initDataUnsafe?.user;
+    
+    if (!user || !user.id) {
+        showResult('User information not available. Please open this in Telegram.', false, [], 0);
         return;
     }
     
+    const userId = user.id;
+    
     verifyBtn.disabled = true;
     verifyBtn.querySelector('.button-text').textContent = 'Checking...';
-    loading.style.display = 'block';
-    loading.textContent = 'Verifying membership...';
+    showLoading();
     
     try {
-        const response = await fetch(`/check_membership/${token}?user_id=${currentUserId}`);
+        const response = await fetch(`/check_membership/${token}?user_id=${userId}`);
         
         if (!response.ok) {
-            throw new Error('Verification failed');
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const data = await response.json();
         
         if (data.is_member) {
-            // User is verified
-            showResult(`✅ VERIFICATION SUCCESSFUL! You can now access the protected content.`, true, data.channels);
+            const channelCount = data.channel_count || data.channels?.length || 0;
+            showResult(`✅ VERIFICATION SUCCESSFUL! You have joined all ${channelCount} required channels.`, true, data.channels || [], channelCount);
         } else {
-            // User needs to join channels
-            showResult(`❌ You need to join ${data.channel_count} channel(s) to access this content.`, false, data.channels);
-        }
-        
-    } catch (error) {
-        console.error('Error:', error);
-        showResult('❌ Verification failed. Please try again.', false);
-    }
-}
-
-// Show result
-function showResult(message, isSuccess, channels = []) {
-    loading.style.display = 'none';
-    initialState.style.display = 'none';
-    resultSection.style.display = 'block';
-    
-    resultMessage.textContent = message;
-    resultMessage.className = `result-message ${isSuccess ? 'success-message' : 'warning-message'}`;
-    
-    // Show channels if available
-    if (channels && channels.length > 0) {
-        channelsList.innerHTML = '';
-        channels.forEach(channel => {
-            const channelItem = document.createElement('div');
-            channelItem.className = `channel-item ${channel.is_member ? 'joined' : 'not-joined'}`;
-            channelItem.innerHTML = `
-                <div class="channel-info">
-                    <div>
-                        <div class="channel-name">${channel.channel_title || channel.display_name || channel.channel}</div>
-                        <div style="font-size:0.8em; color:#aaa;">${channel.is_member ? '✓ Joined' : '✗ Not Joined'}</div>
-                    </div>
-                </div>
-                ${!channel.is_member && channel.invite_link ? 
-                    `<a href="${channel.invite_link}" target="_blank" style="color:#ff8c00; text-decoration:none; font-size:0.9em;">Join</a>` : 
-                    ''}
-            `;
-            channelsList.appendChild(channelItem);
-        });
-        channelsContainer.style.display = 'block';
-    }
-    
-    // Create buttons
-    if (isSuccess) {
-        adNotice.style.display = 'block';
-        actionButtons.innerHTML = `
-            <button id="accessBtn" class="join-now-button">
-                <span class="button-text">Watch Ad & Access Content</span>
-            </button>
-            <button id="checkAgainBtn" style="background:transparent; border:1px solid #aaa; color:#aaa; padding:10px 20px; border-radius:25px; cursor:pointer;">
-                Verify Again
-            </button>
-        `;
-        
-        // Add event listeners
-        setTimeout(() => {
-            document.getElementById('accessBtn').addEventListener('click', accessContent);
-            document.getElementById('checkAgainBtn').addEventListener('click', resetVerification);
-        }, 100);
-        
-    } else {
-        actionButtons.innerHTML = `
-            <button id="checkAgainBtn" class="verify-button">
-                <span class="button-text">Verify Again</span>
-            </button>
-        `;
-        
-        setTimeout(() => {
-            document.getElementById('checkAgainBtn').addEventListener('click', resetVerification);
-        }, 100);
-    }
-}
-
-// Reset verification
-function resetVerification() {
-    resultSection.style.display = 'none';
-    initialState.style.display = 'block';
-    verifyBtn.disabled = false;
-    verifyBtn.querySelector('.button-text').textContent = 'Verify Membership';
-    manualLink.style.display = 'none';
-}
-
-// Access content with ad
-async function accessContent() {
-    const accessBtn = document.getElementById('accessBtn');
-    const loading = document.getElementById('loading');
-    
-    accessBtn.disabled = true;
-    accessBtn.querySelector('.button-text').textContent = 'Processing...';
-    loading.style.display = 'block';
-    loading.textContent = 'Getting protected link...';
-    
-    try {
-        // Get the protected link
-        const response = await fetch(`/getgrouplink/${token}`);
-        
-        if (!response.ok) {
-            throw new Error('Failed to get protected link');
-        }
-        
-        const data = await response.json();
-        const protectedUrl = data.url;
-        
-        if (!protectedUrl) {
-            throw new Error('No protected link found');
-        }
-        
-        // Store for manual access
-        const directLink = document.getElementById('directLink');
-        directLink.href = protectedUrl;
-        directLink.textContent = protectedUrl;
-        
-        // Show ad overlay
-        loading.textContent = 'Loading advertisement...';
-        
-        const adOverlay = document.createElement('div');
-        adOverlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.95);
-            z-index: 10000;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            text-align: center;
-            padding: 20px;
-        `;
-        
-        adOverlay.innerHTML = `
-            <div style="font-size: 1.5em; color: #00ffff; margin-bottom: 20px;">
-                📺 Advertisement
-            </div>
-            <div style="margin-bottom: 30px; max-width: 400px;">
-                Please wait while the ad loads...<br>
-                This will close in <span id="countdown">5</span> seconds
-            </div>
-            <div style="background: rgba(0,255,255,0.1); padding: 20px; border-radius: 10px; border: 1px solid #00ffff; margin-bottom: 20px;">
-                <strong>Sponsored Content</strong><br>
-                Support our bot by watching this short ad
-            </div>
-            <button id="skipAdBtn" style="padding: 10px 20px; background: #ff8c00; color: white; border: none; border-radius: 25px; cursor: pointer; margin-bottom: 20px;">
-                Skip Ad & Continue
-            </button>
-            <div style="font-size: 0.9em; color: #aaa; margin-top: 20px;">
-                After the ad, you'll be redirected automatically
-            </div>
-        `;
-        
-        document.body.appendChild(adOverlay);
-        
-        // Countdown
-        let countdown = 5;
-        const countdownElement = document.getElementById('countdown');
-        const countdownInterval = setInterval(() => {
-            countdown--;
-            countdownElement.textContent = countdown;
+            const channelCount = data.channel_count || data.channels?.length || 0;
+            let message = `❌ ACCESS DENIED! You need to join ${channelCount} channel(s) to access this content.`;
             
-            if (countdown <= 0) {
-                clearInterval(countdownInterval);
-                completeAccess(protectedUrl, adOverlay);
+            if (channelCount > 1) {
+                message = `❌ ACCESS DENIED! You need to join all ${channelCount} channels to access this content.`;
             }
-        }, 1000);
-        
-        // Skip button
-        document.getElementById('skipAdBtn').onclick = () => {
-            clearInterval(countdownInterval);
-            completeAccess(protectedUrl, adOverlay);
-        };
-        
-        // Click anywhere to skip
-        adOverlay.onclick = (e) => {
-            if (e.target === adOverlay) {
-                clearInterval(countdownInterval);
-                completeAccess(protectedUrl, adOverlay);
-            }
-        };
-        
-    } catch (error) {
-        console.error('Error:', error);
-        loading.textContent = 'Error! Please try again';
-        manualLink.style.display = 'block';
-        
-        setTimeout(() => {
-            resetAccessButton();
-        }, 3000);
-    }
-}
-
-// Complete access
-function completeAccess(protectedUrl, adOverlay) {
-    // Remove ad overlay
-    if (adOverlay && adOverlay.parentNode) {
-        adOverlay.parentNode.removeChild(adOverlay);
-    }
-    
-    // Show final message
-    const loading = document.getElementById('loading');
-    loading.textContent = 'Redirecting to protected content...';
-    
-    // Try to open Telegram link
-    try {
-        if (window.Telegram && window.Telegram.WebApp) {
-            window.Telegram.WebApp.openTelegramLink(protectedUrl);
-        } else {
-            window.open(protectedUrl, '_blank');
+            
+            showResult(message, false, data.channels || [], channelCount);
         }
         
-        // Close WebApp after 2 seconds
-        setTimeout(() => {
-            try {
-                if (window.Telegram && window.Telegram.WebApp) {
-                    window.Telegram.WebApp.close();
-                }
-            } catch(e) {
-                // WebApp already closed
-            }
-        }, 2000);
-        
-    } catch (e) {
-        manualLink.style.display = 'block';
-        loading.textContent = 'Click the link above to access manually';
+    } catch (error) {
+        console.error('Verification error:', error);
+        showResult('❌ ERROR: Failed to verify membership. Please try again.', false, [], 0);
     }
 }
 
-// Reset access button
-function resetAccessButton() {
-    const accessBtn = document.getElementById('accessBtn');
-    const loading = document.getElementById('loading');
-    
-    if (accessBtn) {
-        accessBtn.disabled = false;
-        accessBtn.querySelector('.button-text').textContent = 'Watch Ad & Access Content';
-    }
-    loading.style.display = 'none';
-}
-
-// Initialize
+// Initialize auto ads when page loads
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize automatic in-app interstitial ads
+    setTimeout(() => {
+        if (isAdSDKAvailable()) {
+            show_10391340({
+                type: 'inApp',
+                inAppSettings: {
+                    frequency: 2,
+                    capping: 0.1,
+                    interval: 30,
+                    timeout: 5,
+                    everyPage: false
+                }
+            });
+        }
+    }, 3000);
+    
+    // Event listener for verify button
     verifyBtn.addEventListener('click', verifyMembership);
     
-    // Add Font Awesome
-    const faScript = document.createElement('script');
-    faScript.src = 'https://kit.fontawesome.com/a076d05399.js';
-    faScript.crossOrigin = 'anonymous';
-    document.head.appendChild(faScript);
+    // Event listener for skip ad button
+    document.getElementById('skipAdBtn').addEventListener('click', accessWithoutAd);
+    
+    // Show skip button after 5 seconds
+    setTimeout(() => {
+        if (isAdSDKAvailable()) {
+            document.getElementById('skipAdBtn').style.display = 'block';
+        }
+    }, 5000);
+});
+
+// Prevent accidental page unload
+window.addEventListener('beforeunload', (e) => {
+    if (isProcessingJoin || isAdShowing) {
+        e.preventDefault();
+        e.returnValue = 'Are you sure you want to leave? The verification process is still in progress.';
+        return 'Are you sure you want to leave? The verification process is still in progress.';
+    }
 });
 </script>
-
 </body>
 </html>

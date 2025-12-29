@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TEAM SECRET — Join</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
+<!-- Rewarded Interstitial Ad SDK -->
+<script src='//libtl.com/sdk.js' data-zone='10391340' data-sdk='show_10391340'></script>
 
 <style>
 :root{
@@ -31,6 +33,180 @@ body{
   position:relative;
   padding:20px;
   overflow-x:hidden;
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;
+  user-select:none;
+}
+
+/* Close Prevention Overlay */
+#close-overlay{
+  display:none;
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.9);
+  z-index:9999;
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
+  color:white;
+  text-align:center;
+  padding:20px;
+}
+
+.close-message{
+  font-size:1.2em;
+  margin-bottom:20px;
+  color:#00ffff;
+  text-shadow:0 0 10px #00ffff;
+  background:rgba(0,0,0,0.7);
+  padding:20px;
+  border-radius:15px;
+  border:2px solid #00ffff;
+  max-width:400px;
+}
+
+.continue-button{
+  padding:15px 30px;
+  background:linear-gradient(135deg,#00ffff,#00aaff);
+  color:white;
+  border:none;
+  border-radius:25px;
+  font-size:1.1em;
+  cursor:pointer;
+  margin-top:20px;
+  font-weight:bold;
+  box-shadow:0 0 20px #00ffff;
+}
+
+/* Animated Grid Background */
+#grid-bg{
+  position:fixed;
+  inset:0;
+  background-image:
+    linear-gradient(rgba(0,255,255,0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,255,0.1) 1px, transparent 1px);
+  background-size:50px 50px;
+  animation:gridMove 20s linear infinite;
+  z-index:-10;
+}
+
+@keyframes gridMove{
+  0%{background-position:0 0}
+  100%{background-position:50px 50px}
+}
+
+/* Matrix Rain */
+#matrix-bg{
+  position:fixed;
+  inset:0;
+  z-index:-9;
+  opacity:0.4;
+}
+
+/* Floating Particles */
+.particles{
+  position:fixed;
+  inset:0;
+  z-index:-8;
+  pointer-events:none;
+  overflow:hidden;
+}
+
+.particle{
+  position:absolute;
+  width:4px;
+  height:4px;
+  background:var(--neon-cyan);
+  border-radius:50%;
+  animation:float-particle 8s infinite ease-in-out;
+}
+
+@keyframes float-particle{
+  0%,100%{
+    transform:translateY(0) translateX(0);
+    opacity:0.3;
+  }
+  50%{
+    transform:translateY(-100px) translateX(50px);
+    opacity:1;
+  }
+}
+
+/* Rotating Rings */
+.ring-container{
+  position:fixed;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:-7;
+  pointer-events:none;
+  width:100%;
+  height:100%;
+}
+
+.neon-ring{
+  position:absolute;
+  border-radius:50%;
+  border:2px solid;
+  filter:blur(1px);
+}
+
+.ring1{
+  width:min(600px, 90vw);
+  height:min(600px, 90vw);
+  border-color:rgba(0,255,255,0.3);
+  animation:spin 20s linear infinite;
+  box-shadow:0 0 40px var(--glow-cyan);
+}
+
+.ring2{
+  width:min(450px, 70vw);
+  height:min(450px, 70vw);
+  border-color:rgba(184,0,255,0.3);
+  animation:spin 15s linear infinite reverse;
+  box-shadow:0 0 40px var(--glow-purple);
+}
+
+.ring3{
+  width:min(300px, 50vw);
+  height:min(300px, 50vw);
+  border-color:rgba(255,0,255,0.3);
+  animation:spin 25s linear infinite;
+  box-shadow:0 0 40px rgba(255,0,255,0.5);
+}
+
+@keyframes spin{
+  0%{transform:rotate(0deg)}
+  100%{transform:rotate(360deg)}
+}
+
+/* Radial Glow */
+.radial-glow{
+  position:fixed;
+  inset:0;
+  background:radial-gradient(
+    circle at center,
+    rgba(0,255,255,0.15) 0%,
+    rgba(184,0,255,0.1) 35%,
+    transparent 70%
+  );
+  z-index:-6;
+  animation:pulse-glow 4s infinite alternate ease-in-out;
+}
+
+@keyframes pulse-glow{
+  0%{
+    opacity:0.5;
+    transform:scale(0.95);
+  }
+  100%{
+    opacity:1;
+    transform:scale(1.05);
+  }
 }
 
 /* Main Container */
@@ -62,6 +238,30 @@ body{
   100%{
     transform:translateY(-15px) scale(1.02);
   }
+}
+
+.container::before{
+  content:'';
+  position:absolute;
+  top:-50%;
+  left:-50%;
+  width:200%;
+  height:200%;
+  background:conic-gradient(
+    from 0deg,
+    transparent,
+    rgba(0,255,255,0.3),
+    transparent,
+    rgba(184,0,255,0.3),
+    transparent
+  );
+  animation:rotate-border 6s linear infinite;
+  z-index:-1;
+}
+
+@keyframes rotate-border{
+  0%{transform:rotate(0deg)}
+  100%{transform:rotate(360deg)}
 }
 
 /* Logo/Badge */
@@ -98,6 +298,17 @@ body{
   }
 }
 
+.logo-badge::before{
+  content:'';
+  position:absolute;
+  inset:-5px;
+  border-radius:50%;
+  border:2px solid transparent;
+  border-top-color:var(--neon-cyan);
+  border-right-color:var(--neon-purple);
+  animation:spin 3s linear infinite;
+}
+
 .logo-badge img{
   width:100%;
   height:100%;
@@ -121,6 +332,15 @@ h1{
   line-height:1.2;
 }
 
+@keyframes glow-title{
+  0%{
+    filter:drop-shadow(0 0 10px var(--glow-cyan));
+  }
+  100%{
+    filter:drop-shadow(0 0 25px var(--glow-purple));
+  }
+}
+
 /* Status */
 .status{
   font-size:clamp(1.2em, 4vw, 1.5em);
@@ -132,6 +352,24 @@ h1{
   position:relative;
   display:inline-block;
   padding:0 40px;
+}
+
+.status::before, .status::after{
+  content:'';
+  position:absolute;
+  width:30px;
+  height:2px;
+  background:linear-gradient(90deg, transparent, var(--neon-cyan));
+  top:50%;
+}
+
+.status::before{
+  left:0;
+}
+
+.status::after{
+  right:0;
+  background:linear-gradient(90deg, var(--neon-cyan), transparent);
 }
 
 /* Full Name Display */
@@ -163,6 +401,32 @@ h1{
   }
 }
 
+/* Scanning Animation */
+.scanning{
+  position:relative;
+  padding:8px 0;
+  margin:20px 0;
+}
+
+.scan-line{
+  width:100%;
+  height:2px;
+  background:linear-gradient(90deg, transparent, var(--neon-green), transparent);
+  animation:scan 2s infinite ease-in-out;
+  box-shadow:0 0 10px var(--glow-green);
+}
+
+@keyframes scan{
+  0%,100%{
+    opacity:0.3;
+    transform:scaleX(0.5);
+  }
+  50%{
+    opacity:1;
+    transform:scaleX(1);
+  }
+}
+
 /* Join Now Button */
 .join-now-button{
   padding:clamp(16px, 4vw, 20px) clamp(30px, 6vw, 60px);
@@ -182,11 +446,27 @@ h1{
   box-shadow:
     0 0 20px var(--glow-green),
     inset 0 0 20px rgba(0,255,0,0.1);
-  display:block;
+  display:inline-block;
   text-decoration:none;
-  margin:20px auto;
-  width:100%;
-  max-width:300px;
+  margin:10px 5px;
+}
+
+.join-now-button::before{
+  content:'';
+  position:absolute;
+  top:50%;
+  left:50%;
+  width:0;
+  height:0;
+  border-radius:50%;
+  background:radial-gradient(circle, var(--neon-green), transparent);
+  transform:translate(-50%, -50%);
+  transition:width 0.6s, height 0.6s;
+}
+
+.join-now-button:hover::before{
+  width:300px;
+  height:300px;
 }
 
 .join-now-button:hover{
@@ -199,9 +479,46 @@ h1{
   border-color:#00cc00;
 }
 
+.join-now-button:active{
+  transform:translateY(0) scale(1);
+}
+
+.join-now-button:disabled{
+  opacity:0.6;
+  cursor:not-allowed;
+  transform:none;
+}
+
 .button-text{
   position:relative;
   z-index:1;
+}
+
+/* Skip Ad Button */
+.skip-ad-button {
+  padding: 12px 25px;
+  font-size: 1em;
+  border-radius: 50px;
+  border: 2px solid #ff8c00;
+  background: linear-gradient(135deg, rgba(255, 140, 0, 0.3), rgba(255, 69, 0, 0.3));
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 15px rgba(255, 140, 0, 0.5);
+  display: none;
+  margin-top: 15px;
+}
+
+.skip-ad-button:hover {
+  background: linear-gradient(135deg, rgba(255, 140, 0, 0.5), rgba(255, 69, 0, 0.5));
+  transform: translateY(-2px);
+  box-shadow: 0 0 25px rgba(255, 140, 0, 0.7);
 }
 
 /* Loading Animation */
@@ -258,46 +575,20 @@ h1{
   }
 }
 
-/* Message Box */
-.message-box{
-  background:rgba(0,40,80,0.5);
-  border:2px solid var(--neon-cyan);
-  border-radius:15px;
-  padding:20px;
-  margin:20px 0;
-  text-align:left;
-  font-size:0.95em;
-  line-height:1.6;
+/* Success Animation */
+.success-animation{
+  animation:fadeIn 0.5s ease-out;
 }
 
-.message-box h3{
-  color:var(--neon-cyan);
-  margin-bottom:10px;
-  font-family:'Orbitron', sans-serif;
-}
-
-.message-box ul{
-  padding-left:20px;
-  margin:10px 0;
-}
-
-.message-box li{
-  margin-bottom:8px;
-}
-
-/* Simple Ad Notice */
-.ad-notice{
-  background:rgba(255,215,0,0.1);
-  border:1px solid rgba(255,215,0,0.3);
-  border-radius:10px;
-  padding:15px;
-  margin:15px 0;
-  font-size:0.9em;
-  color:#ffd700;
-}
-
-.ad-notice i{
-  margin-right:8px;
+@keyframes fadeIn{
+  from{
+    opacity:0;
+    transform:translateY(-10px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
 }
 
 /* Responsive */
@@ -321,48 +612,51 @@ h1{
 </head>
 <body>
 
+<!-- Close Prevention Overlay -->
+<div id="close-overlay">
+  <div class="close-message">
+    <h3>⚠️ WebApp Closing Prevented</h3>
+    <p>The join process is in progress. Click "Continue" to resume.</p>
+    <p>Auto-continue in 5 seconds...</p>
+  </div>
+  <button class="continue-button" onclick="reopenWebApp()">Continue</button>
+</div>
+
+<div id="grid-bg"></div>
+<canvas id='matrix-bg'></canvas>
+<div class='particles'></div>
+
+<div class='ring-container'>
+  <div class='neon-ring ring1'></div>
+  <div class='neon-ring ring2'></div>
+  <div class='neon-ring ring3'></div>
+</div>
+
+<div class='radial-glow'></div>
+
 <div class='container'>
   <div class='logo-badge'>
     <img src='https://i.ibb.co/8g2YxXq6/tmpyb9cwaub.jpg' alt='Team Secret Logo'>
   </div>
-  
   <h1>TEAM SECRET</h1>
   <div class='status'>Access Granted</div>
-  <div id="fullname" class='fullname-display'>User</div>
+  <div id="fullname" class='fullname-display success-animation'>Loading...</div>
   
-  <!-- Ad Notice -->
-  <div class="ad-notice">
-    <i class="fas fa-ad"></i> Please watch a short ad to access the protected content
+  <div class='scanning'>
+    <div class='scan-line'></div>
   </div>
   
-  <!-- Message Box with Instructions -->
-  <div class="message-box">
-    <h3>📱 How to Join:</h3>
-    <p>Follow these simple steps:</p>
-    <ul>
-      <li>1. Click the "Watch Ad & Join" button below</li>
-      <li>2. A short advertisement will play (5-10 seconds)</li>
-      <li>3. After the ad, you'll be redirected to the Telegram group</li>
-      <li>4. The WebApp will close automatically</li>
-    </ul>
-    <p><strong>Note:</strong> If the ad doesn't load, wait 5 seconds and try again.</p>
-  </div>
+  <button id="joinBtn" class='join-now-button success-animation'>
+    <span class='button-text'>Join Now</span>
+  </button>
   
-  <!-- Join Button -->
-  <a href="#" id="joinBtn" class='join-now-button'>
-    <span class='button-text'>Watch Ad & Join Group</span>
-  </a>
+  <button id="skipAdBtn" class='skip-ad-button'>
+    <span class='button-text'>Skip Ad & Join Group</span>
+  </button>
   
-  <!-- Loading -->
-  <div id="loading" class='loading'>Processing...</div>
+  <div id="loading" class='loading'>Opening group...</div>
   
-  <!-- Manual Link Display -->
-  <div id="manualLink" style="display:none; margin-top:20px;">
-    <p style="color:#aaa; font-size:0.9em; margin-bottom:10px;">If automatic redirect doesn't work:</p>
-    <a href="#" id="directLink" style="color:#00ffff; text-decoration:none; word-break:break-all; font-size:0.9em;">Click here to join manually</a>
-  </div>
-  
-  <div class='features'>
+  <div class='features success-animation'>
     <div class='feature'>
       <div class='feature-icon'></div>
       <span>Verified</span>
@@ -378,200 +672,315 @@ h1{
   </div>
 </div>
 
-<!-- SIMPLE SCRIPT SOLUTION -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>
-// Get token from URL or template
-const token = "{{ token }}";
+// Telegram WebApp Integration - FIXED
+const tg = window.Telegram.WebApp;
 
-// Display user's name if available
-try {
-    const urlParams = new URLSearchParams(window.location.search);
-    const userId = urlParams.get('user_id');
-    const userName = urlParams.get('username');
-    if (userName) {
-        document.getElementById('fullname').textContent = decodeURIComponent(userName);
+// Initialize WebApp with closing prevention
+tg.ready();
+tg.expand();
+
+// DISABLE closing confirmation to prevent accidental closing
+tg.disableClosingConfirmation();
+
+// Store original close function
+let isProcessingJoin = false;
+let isAdShowing = false;
+let hasAdBeenShown = false; // NEW: Track if ad has been shown
+const originalClose = tg.close;
+
+// Override close function to prevent accidental closing
+tg.close = function() {
+    if (isProcessingJoin || isAdShowing) {
+        console.log('Prevented WebApp close during join process');
+        showCloseOverlay();
+        return false;
     }
-} catch(e) {
-    console.log('Could not get user info');
+    return originalClose.call(tg);
+};
+
+// Function to show overlay when WebApp tries to close
+function showCloseOverlay() {
+    document.getElementById('close-overlay').style.display = 'flex';
+    setTimeout(() => {
+        hideCloseOverlay();
+    }, 5000);
 }
 
-// Main function to handle join
-async function handleJoin() {
-    const joinBtn = document.getElementById('joinBtn');
-    const loading = document.getElementById('loading');
-    const manualLinkDiv = document.getElementById('manualLink');
-    
-    // Disable button and show loading
-    joinBtn.style.opacity = '0.6';
-    joinBtn.style.cursor = 'not-allowed';
-    joinBtn.querySelector('.button-text').textContent = 'Loading...';
-    loading.style.display = 'block';
-    
+function hideCloseOverlay() {
+    document.getElementById('close-overlay').style.display = 'none';
+}
+
+function reopenWebApp() {
+    hideCloseOverlay();
+    tg.expand();
+}
+
+// Display user's full name
+const user = tg.initDataUnsafe?.user;
+const fullnameElement = document.getElementById('fullname');
+
+if (user) {
+    let displayName = user.first_name || '';
+    if (user.last_name) {
+        displayName += ' ' + user.last_name;
+    }
+    if (!displayName.trim() && user.username) {
+        displayName = `@${user.username}`;
+    }
+    fullnameElement.textContent = displayName.trim() || 'User';
+} else {
+    fullnameElement.textContent = 'User';
+}
+
+const token = "{{ token }}";
+
+// Check if ad SDK is available
+function isAdSDKAvailable() {
+    return typeof show_10391340 === 'function';
+}
+
+// Function to get the group link
+async function getGroupLink() {
     try {
-        // STEP 1: Get the group link from server
-        loading.textContent = 'Getting group link...';
         const response = await fetch(`/getgrouplink/${token}`);
         
         if (!response.ok) {
-            throw new Error('Failed to get group link');
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const data = await response.json();
-        const groupUrl = data.url;
-        
-        if (!groupUrl) {
-            throw new Error('No group link found');
-        }
-        
-        // STEP 2: Store the link for manual access
-        const directLink = document.getElementById('directLink');
-        directLink.href = groupUrl;
-        directLink.textContent = groupUrl;
-        
-        // STEP 3: Show ad first (using simple approach)
-        loading.textContent = 'Loading advertisement...';
-        
-        // Create a simple ad overlay
-        const adOverlay = document.createElement('div');
-        adOverlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.9);
-            z-index: 10000;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            text-align: center;
-            padding: 20px;
-        `;
-        
-        adOverlay.innerHTML = `
-            <div style="font-size: 1.5em; color: #00ffff; margin-bottom: 20px;">
-                📺 Advertisement
-            </div>
-            <div style="margin-bottom: 30px; max-width: 400px;">
-                Please wait while the ad loads...<br>
-                This will close in <span id="countdown">5</span> seconds
-            </div>
-            <div style="background: rgba(0,255,255,0.1); padding: 20px; border-radius: 10px; border: 1px solid #00ffff; margin-bottom: 20px;">
-                <strong>Sponsored Content</strong><br>
-                Support our bot by watching this short ad
-            </div>
-            <button id="skipAdBtn" style="padding: 10px 20px; background: #ff8c00; color: white; border: none; border-radius: 25px; cursor: pointer;">
-                Skip Ad & Join Now
-            </button>
-        `;
-        
-        document.body.appendChild(adOverlay);
-        
-        // Countdown timer
-        let countdown = 5;
-        const countdownElement = document.getElementById('countdown');
-        const countdownInterval = setInterval(() => {
-            countdown--;
-            countdownElement.textContent = countdown;
-            
-            if (countdown <= 0) {
-                clearInterval(countdownInterval);
-                completeRedirect(groupUrl, adOverlay);
-            }
-        }, 1000);
-        
-        // Skip ad button
-        document.getElementById('skipAdBtn').onclick = () => {
-            clearInterval(countdownInterval);
-            completeRedirect(groupUrl, adOverlay);
-        };
-        
-        // Also redirect if user clicks anywhere
-        adOverlay.onclick = (e) => {
-            if (e.target === adOverlay) {
-                clearInterval(countdownInterval);
-                completeRedirect(groupUrl, adOverlay);
-            }
-        };
-        
+        return data.url;
     } catch (error) {
-        console.error('Error:', error);
-        loading.textContent = 'Error! Please try again';
-        
-        // Show manual link as fallback
-        manualLinkDiv.style.display = 'block';
-        
-        // Reset button after 3 seconds
-        setTimeout(() => {
-            resetButton();
-        }, 3000);
+        console.error('Failed to get group link:', error);
+        return null;
     }
 }
 
-// Function to complete redirect
-function completeRedirect(groupUrl, adOverlay) {
-    // Remove ad overlay
-    if (adOverlay && adOverlay.parentNode) {
-        adOverlay.parentNode.removeChild(adOverlay);
-    }
+// Function to open Telegram link SAFELY
+function openTelegramLink(url) {
+    if (!url) return false;
     
-    // Show final message
-    const loading = document.getElementById('loading');
-    loading.textContent = 'Redirecting to group...';
-    
-    // Try to open Telegram link
     try {
-        // Try WebApp method first
-        if (window.Telegram && window.Telegram.WebApp) {
-            window.Telegram.WebApp.openTelegramLink(groupUrl);
-        } else {
-            // Fallback: open in new tab
-            window.open(groupUrl, '_blank');
-        }
+        tg.openTelegramLink(url);
         
-        // Close WebApp after 2 seconds
         setTimeout(() => {
+            isProcessingJoin = false;
+            isAdShowing = false;
             try {
-                if (window.Telegram && window.Telegram.WebApp) {
-                    window.Telegram.WebApp.close();
-                }
-            } catch(e) {
-                // WebApp already closed
+                originalClose.call(tg);
+            } catch (e) {
+                console.log('WebApp already closed');
             }
         }, 2000);
         
-    } catch (e) {
-        // Show manual link
-        document.getElementById('manualLink').style.display = 'block';
-        loading.textContent = 'Click the link above to join manually';
+        return true;
+    } catch (error) {
+        console.error('Failed to open Telegram link:', error);
+        return false;
     }
 }
 
-// Function to reset button
-function resetButton() {
+// Main join function - UPDATED
+async function handleJoin() {
+    if (isProcessingJoin) return;
+    
+    const joinBtn = document.getElementById('joinBtn');
+    const loading = document.getElementById('loading');
+    const skipBtn = document.getElementById('skipAdBtn');
+    
+    isProcessingJoin = true;
+    
+    try {
+        // Get the group link FIRST (before any ads)
+        const groupUrl = await getGroupLink();
+        
+        if (!groupUrl) {
+            throw new Error('Could not get group link');
+        }
+        
+        // Store the group URL for later use
+        window.groupUrl = groupUrl;
+        
+        // Check if ad has been shown before
+        if (!hasAdBeenShown && isAdSDKAvailable()) {
+            // First time - show ad, but keep button unchanged
+            isAdShowing = true;
+            
+            // Don't change button text or show loading
+            // Just show ad in background
+            
+            let adCompleted = false;
+            const adTimeout = setTimeout(() => {
+                if (!adCompleted) {
+                    console.log('Ad timeout, proceeding without ad');
+                    adCompleted = true;
+                    isAdShowing = false;
+                    hasAdBeenShown = true; // Mark ad as shown
+                    completeJoinProcess();
+                }
+            }, 10000); // 10 second timeout for ad
+            
+            try {
+                // Show ad but don't change UI
+                show_10391340('pop').then(() => {
+                    clearTimeout(adTimeout);
+                    adCompleted = true;
+                    isAdShowing = false;
+                    hasAdBeenShown = true; // Mark ad as shown
+                    completeJoinProcess();
+                }).catch(error => {
+                    clearTimeout(adTimeout);
+                    console.error('Ad error:', error);
+                    adCompleted = true;
+                    isAdShowing = false;
+                    hasAdBeenShown = true; // Mark ad as shown even if error
+                    completeJoinProcess();
+                });
+            } catch (adError) {
+                clearTimeout(adTimeout);
+                console.error('Ad SDK error:', adError);
+                adCompleted = true;
+                isAdShowing = false;
+                hasAdBeenShown = true;
+                completeJoinProcess();
+            }
+        } else {
+            // Ad already shown or no ad SDK - directly join
+            isAdShowing = false;
+            completeJoinProcess();
+        }
+        
+    } catch (error) {
+        console.error('Join process error:', error);
+        alert('Error: ' + error.message);
+        resetJoinButton();
+    }
+}
+
+// Function to complete the join process
+function completeJoinProcess() {
+    const loading = document.getElementById('loading');
+    const joinBtn = document.getElementById('joinBtn');
+    
+    // NOW show loading state on button
+    joinBtn.disabled = true;
+    joinBtn.querySelector('.button-text').textContent = 'Opening Group...';
+    loading.style.display = 'block';
+    loading.textContent = 'Redirecting...';
+    
+    // Open the group link
+    setTimeout(() => {
+        const opened = openTelegramLink(window.groupUrl);
+        if (!opened) {
+            // Fallback: Show the link
+            alert(`Please join using this link: ${window.groupUrl}`);
+            resetJoinButton();
+        }
+    }, 1500);
+    
+    // Auto-reset after 15 seconds if something goes wrong
+    setTimeout(() => {
+        if (isProcessingJoin) {
+            resetJoinButton();
+            alert('Process timed out. Please try again.');
+        }
+    }, 15000);
+}
+
+// Function to reset join button
+function resetJoinButton() {
     const joinBtn = document.getElementById('joinBtn');
     const loading = document.getElementById('loading');
     
-    joinBtn.style.opacity = '1';
-    joinBtn.style.cursor = 'pointer';
-    joinBtn.querySelector('.button-text').textContent = 'Watch Ad & Join Group';
+    isProcessingJoin = false;
+    isAdShowing = false;
+    joinBtn.disabled = false;
+    joinBtn.querySelector('.button-text').textContent = 'Join Now';
     loading.style.display = 'none';
 }
 
-// Attach click event
-document.getElementById('joinBtn').addEventListener('click', function(e) {
-    e.preventDefault();
-    handleJoin();
+// Function for direct join without ad (skip button)
+async function joinWithoutAd() {
+    if (isProcessingJoin) return;
+    
+    const joinBtn = document.getElementById('joinBtn');
+    const loading = document.getElementById('loading');
+    const skipBtn = document.getElementById('skipAdBtn');
+    
+    isProcessingJoin = true;
+    joinBtn.disabled = true;
+    joinBtn.querySelector('.button-text').textContent = 'Opening Group...';
+    loading.style.display = 'block';
+    loading.textContent = 'Getting group link...';
+    
+    if (skipBtn) skipBtn.style.display = 'none';
+    
+    try {
+        const groupUrl = await getGroupLink();
+        
+        if (groupUrl) {
+            loading.textContent = 'Opening group...';
+            window.groupUrl = groupUrl;
+            hasAdBeenShown = true; // Mark ad as shown so next time won't show
+            setTimeout(() => {
+                const opened = openTelegramLink(groupUrl);
+                if (!opened) {
+                    alert(`Please join: ${groupUrl}`);
+                    resetJoinButton();
+                }
+            }, 500);
+        } else {
+            alert('Error: Could not get group link');
+            resetJoinButton();
+        }
+    } catch (error) {
+        console.error('Skip ad error:', error);
+        alert('Error: ' + error.message);
+        resetJoinButton();
+    }
+}
+
+// Initialize auto ads when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize automatic in-app interstitial ads
+    setTimeout(() => {
+        if (isAdSDKAvailable()) {
+            show_10391340({
+                type: 'inApp',
+                inAppSettings: {
+                    frequency: 2,
+                    capping: 0.1,
+                    interval: 30,
+                    timeout: 5,
+                    everyPage: false
+                }
+            });
+        }
+    }, 3000);
+    
+    // Attach event listeners
+    document.getElementById('joinBtn').addEventListener('click', handleJoin);
+    document.getElementById('skipAdBtn').addEventListener('click', joinWithoutAd);
+    
+    // Show skip button after 5 seconds
+    setTimeout(() => {
+        const skipBtn = document.getElementById('skipAdBtn');
+        if (skipBtn && isAdSDKAvailable()) {
+            skipBtn.style.display = 'block';
+        }
+    }, 5000);
 });
 
-// Add Font Awesome for icons
-const faScript = document.createElement('script');
-faScript.src = 'https://kit.fontawesome.com/a076d05399.js';
-faScript.crossOrigin = 'anonymous';
-document.head.appendChild(faScript);
+// Prevent accidental page unload
+window.addEventListener('beforeunload', (e) => {
+    if (isProcessingJoin || isAdShowing) {
+        e.preventDefault();
+        e.returnValue = 'Are you sure you want to leave? The join process is still in progress.';
+        return 'Are you sure you want to leave? The join process is still in progress.';
+    }
+});
 </script>
-
 </body>
 </html>

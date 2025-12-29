@@ -5,8 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TEAM SECRET — Join</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
-<!-- Rewarded Interstitial Ad SDK -->
-<script src='//libtl.com/sdk.js' data-zone='10391340' data-sdk='show_10391340'></script>
+<!-- Removed Ad SDK -->
 
 <style>
 :root{
@@ -494,33 +493,6 @@ h1{
   z-index:1;
 }
 
-/* Skip Ad Button */
-.skip-ad-button {
-  padding: 12px 25px;
-  font-size: 1em;
-  border-radius: 50px;
-  border: 2px solid #ff8c00;
-  background: linear-gradient(135deg, rgba(255, 140, 0, 0.3), rgba(255, 69, 0, 0.3));
-  color: #fff;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-family: 'Orbitron', sans-serif;
-  font-weight: 600;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 0 15px rgba(255, 140, 0, 0.5);
-  display: none;
-  margin-top: 15px;
-}
-
-.skip-ad-button:hover {
-  background: linear-gradient(135deg, rgba(255, 140, 0, 0.5), rgba(255, 69, 0, 0.5));
-  transform: translateY(-2px);
-  box-shadow: 0 0 25px rgba(255, 140, 0, 0.7);
-}
-
 /* Loading Animation */
 .loading{
   display:none;
@@ -650,10 +622,6 @@ h1{
     <span class='button-text'>Join Now</span>
   </button>
   
-  <button id="skipAdBtn" class='skip-ad-button'>
-    <span class='button-text'>Skip Ad & Join Group</span>
-  </button>
-  
   <div id="loading" class='loading'>Opening group...</div>
   
   <div class='features success-animation'>
@@ -674,25 +642,20 @@ h1{
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>
-// Telegram WebApp Integration - FIXED
+// Telegram WebApp Integration
 const tg = window.Telegram.WebApp;
 
-// Initialize WebApp with closing prevention
+// Initialize WebApp
 tg.ready();
 tg.expand();
 
-// DISABLE closing confirmation to prevent accidental closing
-tg.disableClosingConfirmation();
-
 // Store original close function
 let isProcessingJoin = false;
-let isAdShowing = false;
-let hasAdBeenShown = false; // NEW: Track if ad has been shown
 const originalClose = tg.close;
 
-// Override close function to prevent accidental closing
+// Override close function to prevent accidental closing during join process
 tg.close = function() {
-    if (isProcessingJoin || isAdShowing) {
+    if (isProcessingJoin) {
         console.log('Prevented WebApp close during join process');
         showCloseOverlay();
         return false;
@@ -736,11 +699,6 @@ if (user) {
 
 const token = "{{ token }}";
 
-// Check if ad SDK is available
-function isAdSDKAvailable() {
-    return typeof show_10391340 === 'function';
-}
-
 // Function to get the group link
 async function getGroupLink() {
     try {
@@ -758,22 +716,16 @@ async function getGroupLink() {
     }
 }
 
-// Function to open Telegram link SAFELY
+// Function to open Telegram link WITHOUT closing WebApp
 function openTelegramLink(url) {
     if (!url) return false;
     
     try {
+        // Open Telegram link without closing the WebApp
         tg.openTelegramLink(url);
         
-        setTimeout(() => {
-            isProcessingJoin = false;
-            isAdShowing = false;
-            try {
-                originalClose.call(tg);
-            } catch (e) {
-                console.log('WebApp already closed');
-            }
-        }, 2000);
+        // IMPORTANT: DON'T close the WebApp after opening the link
+        // This keeps the WebApp open in the background
         
         return true;
     } catch (error) {
@@ -782,75 +734,57 @@ function openTelegramLink(url) {
     }
 }
 
-// Main join function - UPDATED
+// Main join function - SIMPLIFIED
 async function handleJoin() {
     if (isProcessingJoin) return;
     
     const joinBtn = document.getElementById('joinBtn');
     const loading = document.getElementById('loading');
-    const skipBtn = document.getElementById('skipAdBtn');
     
     isProcessingJoin = true;
+    joinBtn.disabled = true;
+    joinBtn.querySelector('.button-text').textContent = 'Processing...';
+    loading.style.display = 'block';
+    loading.textContent = 'Getting group link...';
     
     try {
-        // Get the group link FIRST (before any ads)
+        // Get the group link
+        loading.textContent = 'Getting group link...';
         const groupUrl = await getGroupLink();
         
         if (!groupUrl) {
             throw new Error('Could not get group link');
         }
         
-        // Store the group URL for later use
+        // Store the group URL
         window.groupUrl = groupUrl;
         
-        // Check if ad has been shown before
-        if (!hasAdBeenShown && isAdSDKAvailable()) {
-            // First time - show ad, but keep button unchanged
-            isAdShowing = true;
+        // Update UI to show redirecting
+        joinBtn.querySelector('.button-text').textContent = 'Redirecting...';
+        loading.textContent = 'Redirecting to group...';
+        
+        // Open the group link without closing WebApp
+        setTimeout(() => {
+            const opened = openTelegramLink(groupUrl);
             
-            // Don't change button text or show loading
-            // Just show ad in background
-            
-            let adCompleted = false;
-            const adTimeout = setTimeout(() => {
-                if (!adCompleted) {
-                    console.log('Ad timeout, proceeding without ad');
-                    adCompleted = true;
-                    isAdShowing = false;
-                    hasAdBeenShown = true; // Mark ad as shown
-                    completeJoinProcess();
-                }
-            }, 10000); // 10 second timeout for ad
-            
-            try {
-                // Show ad but don't change UI
-                show_10391340('pop').then(() => {
-                    clearTimeout(adTimeout);
-                    adCompleted = true;
-                    isAdShowing = false;
-                    hasAdBeenShown = true; // Mark ad as shown
-                    completeJoinProcess();
-                }).catch(error => {
-                    clearTimeout(adTimeout);
-                    console.error('Ad error:', error);
-                    adCompleted = true;
-                    isAdShowing = false;
-                    hasAdBeenShown = true; // Mark ad as shown even if error
-                    completeJoinProcess();
-                });
-            } catch (adError) {
-                clearTimeout(adTimeout);
-                console.error('Ad SDK error:', adError);
-                adCompleted = true;
-                isAdShowing = false;
-                hasAdBeenShown = true;
-                completeJoinProcess();
+            if (opened) {
+                // Success - keep WebApp open but update UI
+                joinBtn.querySelector('.button-text').textContent = '✓ Joined Successfully';
+                loading.textContent = 'You can now close this window or continue browsing';
+                
+                // Re-enable button for potential re-use
+                setTimeout(() => {
+                    joinBtn.disabled = false;
+                    isProcessingJoin = false;
+                    joinBtn.querySelector('.button-text').textContent = 'Join Now';
+                    loading.style.display = 'none';
+                }, 3000);
+            } else {
+                // Fallback: Show the link
+                alert(`Please join using this link: ${groupUrl}`);
+                resetJoinButton();
             }
-        } else {
-            // Ad already shown or no ad SDK - directly join
-            isAdShowing = false;
-            completeJoinProcess();
-        }
+        }, 1500);
         
     } catch (error) {
         console.error('Join process error:', error);
@@ -859,123 +793,26 @@ async function handleJoin() {
     }
 }
 
-// Function to complete the join process
-function completeJoinProcess() {
-    const loading = document.getElementById('loading');
-    const joinBtn = document.getElementById('joinBtn');
-    
-    // NOW show loading state on button
-    joinBtn.disabled = true;
-    joinBtn.querySelector('.button-text').textContent = 'Opening Group...';
-    loading.style.display = 'block';
-    loading.textContent = 'Redirecting...';
-    
-    // Open the group link
-    setTimeout(() => {
-        const opened = openTelegramLink(window.groupUrl);
-        if (!opened) {
-            // Fallback: Show the link
-            alert(`Please join using this link: ${window.groupUrl}`);
-            resetJoinButton();
-        }
-    }, 1500);
-    
-    // Auto-reset after 15 seconds if something goes wrong
-    setTimeout(() => {
-        if (isProcessingJoin) {
-            resetJoinButton();
-            alert('Process timed out. Please try again.');
-        }
-    }, 15000);
-}
-
 // Function to reset join button
 function resetJoinButton() {
     const joinBtn = document.getElementById('joinBtn');
     const loading = document.getElementById('loading');
     
     isProcessingJoin = false;
-    isAdShowing = false;
     joinBtn.disabled = false;
     joinBtn.querySelector('.button-text').textContent = 'Join Now';
     loading.style.display = 'none';
 }
 
-// Function for direct join without ad (skip button)
-async function joinWithoutAd() {
-    if (isProcessingJoin) return;
-    
-    const joinBtn = document.getElementById('joinBtn');
-    const loading = document.getElementById('loading');
-    const skipBtn = document.getElementById('skipAdBtn');
-    
-    isProcessingJoin = true;
-    joinBtn.disabled = true;
-    joinBtn.querySelector('.button-text').textContent = 'Opening Group...';
-    loading.style.display = 'block';
-    loading.textContent = 'Getting group link...';
-    
-    if (skipBtn) skipBtn.style.display = 'none';
-    
-    try {
-        const groupUrl = await getGroupLink();
-        
-        if (groupUrl) {
-            loading.textContent = 'Opening group...';
-            window.groupUrl = groupUrl;
-            hasAdBeenShown = true; // Mark ad as shown so next time won't show
-            setTimeout(() => {
-                const opened = openTelegramLink(groupUrl);
-                if (!opened) {
-                    alert(`Please join: ${groupUrl}`);
-                    resetJoinButton();
-                }
-            }, 500);
-        } else {
-            alert('Error: Could not get group link');
-            resetJoinButton();
-        }
-    } catch (error) {
-        console.error('Skip ad error:', error);
-        alert('Error: ' + error.message);
-        resetJoinButton();
-    }
-}
-
-// Initialize auto ads when page loads
+// Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize automatic in-app interstitial ads
-    setTimeout(() => {
-        if (isAdSDKAvailable()) {
-            show_10391340({
-                type: 'inApp',
-                inAppSettings: {
-                    frequency: 2,
-                    capping: 0.1,
-                    interval: 30,
-                    timeout: 5,
-                    everyPage: false
-                }
-            });
-        }
-    }, 3000);
-    
-    // Attach event listeners
+    // Attach event listener to join button
     document.getElementById('joinBtn').addEventListener('click', handleJoin);
-    document.getElementById('skipAdBtn').addEventListener('click', joinWithoutAd);
-    
-    // Show skip button after 5 seconds
-    setTimeout(() => {
-        const skipBtn = document.getElementById('skipAdBtn');
-        if (skipBtn && isAdSDKAvailable()) {
-            skipBtn.style.display = 'block';
-        }
-    }, 5000);
 });
 
 // Prevent accidental page unload
 window.addEventListener('beforeunload', (e) => {
-    if (isProcessingJoin || isAdShowing) {
+    if (isProcessingJoin) {
         e.preventDefault();
         e.returnValue = 'Are you sure you want to leave? The join process is still in progress.';
         return 'Are you sure you want to leave? The join process is still in progress.';

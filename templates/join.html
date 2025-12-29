@@ -1,452 +1,759 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Join Group</title>
-    
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
-    
-    <style>
-        /* CSS Variables for a Hacker Green Theme */
-        :root {
-            --neon-green: #00ff41;
-            --neon-green-glow: rgba(0, 255, 65, 0.7);
-            --bg-color: #000000;
-            --text-color: #f0f0f0;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TEAM SECRET — Join</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
+<!-- Rewarded Interstitial Ad SDK -->
+<script src='//libtl.com/sdk.js' data-zone='10391340' data-sdk='show_10391340'></script>
 
-        body {
-            font-family: 'Rajdhani', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            overflow: auto;
-            position: relative;
-            padding: 20px;
-        }
+<style>
+:root{
+  --bg:#000;
+  --neon-cyan:#00ffff;
+  --neon-purple:#b800ff;
+  --neon-pink:#ff00ff;
+  --glow-cyan:rgba(0,255,255,0.8);
+  --glow-purple:rgba(184,0,255,0.6);
+  --neon-green:#00ff00;
+  --glow-green:rgba(0,255,0,0.8);
+}
 
-        /* The animated canvas background */
-        #matrix-bg {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-        }
+*{margin:0;padding:0;box-sizing:border-box}
 
-        .container {
-            text-align: center;
-            padding: 30px;
-            border-radius: 15px;
-            background: rgba(10, 20, 10, 0.85);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(0, 255, 65, 0.3);
-            box-shadow: 0 0 25px rgba(0, 255, 65, 0.2);
-            width: 90%;
-            max-width: 500px;
-            margin: 20px auto;
-        }
+body{
+  font-family:'Rajdhani', sans-serif;
+  background:#000;
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:white;
+  position:relative;
+  padding:20px;
+  overflow-x:hidden;
+}
 
-        h1 {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 2.5em;
-            font-weight: 700;
-            color: var(--neon-green);
-            text-shadow: 
-                0 0 5px var(--neon-green),
-                0 0 10px var(--neon-green),
-                0 0 20px var(--neon-green-glow);
-            animation: pulse 2s infinite alternate;
-            margin-top: 0;
-            margin-bottom: 20px;
-        }
+/* Animated Grid Background */
+#grid-bg{
+  position:fixed;
+  inset:0;
+  background-image:
+    linear-gradient(rgba(0,255,255,0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,255,0.1) 1px, transparent 1px);
+  background-size:50px 50px;
+  animation:gridMove 20s linear infinite;
+  z-index:-10;
+}
 
-        p {
-            font-size: 1.2em;
-            font-weight: 400;
-            color: #cccccc;
-            margin-bottom: 25px;
-            line-height: 1.5;
-        }
+@keyframes gridMove{
+  0%{background-position:0 0}
+  100%{background-position:50px 50px}
+}
 
-        .join-button {
-            font-family: 'Orbitron', sans-serif;
-            background-color: transparent;
-            color: var(--neon-green);
-            border: 2px solid var(--neon-green);
-            border-radius: 10px;
-            padding: 15px 40px;
-            font-size: 1.3em;
-            font-weight: 600;
-            cursor: pointer;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            transition: all 0.3s ease;
-            box-shadow: 
-                inset 0 0 10px var(--neon-green-glow),
-                0 0 15px var(--neon-green);
-            animation: pulse 2s infinite alternate;
-            margin-top: 20px;
-            width: 100%;
-            max-width: 300px;
-        }
+/* Matrix Rain */
+#matrix-bg{
+  position:fixed;
+  inset:0;
+  z-index:-9;
+  opacity:0.4;
+}
 
-        .join-button:hover {
-            background-color: var(--neon-green);
-            color: var(--bg-color);
-            box-shadow: 
-                inset 0 0 20px var(--neon-green),
-                0 0 30px var(--neon-green),
-                0 0 45px var(--neon-green-glow);
-            transform: scale(1.05);
-        }
-        
-        .join-button:disabled {
-            background-color: #333;
-            color: #777;
-            border-color: #777;
-            cursor: not-allowed;
-            box-shadow: none;
-            animation: none;
-            transform: scale(1);
-        }
+/* Floating Particles */
+.particles{
+  position:fixed;
+  inset:0;
+  z-index:-8;
+  pointer-events:none;
+  overflow:hidden;
+}
 
-        .status-message {
-            font-family: 'Rajdhani', sans-serif;
-            font-size: 1em;
-            margin: 15px 0;
-            padding: 12px;
-            border-radius: 8px;
-            display: none;
-            border: 1px solid transparent;
-        }
+.particle{
+  position:absolute;
+  width:4px;
+  height:4px;
+  background:var(--neon-cyan);
+  border-radius:50%;
+  animation:float-particle 8s infinite ease-in-out;
+}
 
-        .status-success {
-            color: var(--neon-green);
-            background-color: rgba(0, 255, 65, 0.1);
-            border-color: var(--neon-green);
-        }
+@keyframes float-particle{
+  0%,100%{
+    transform:translateY(0) translateX(0);
+    opacity:0.3;
+  }
+  50%{
+    transform:translateY(-100px) translateX(50px);
+    opacity:1;
+  }
+}
 
-        .status-error {
-            color: #ff3333;
-            background-color: rgba(255, 51, 51, 0.1);
-            border-color: #ff3333;
-        }
+/* Rotating Rings */
+.ring-container{
+  position:fixed;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:-7;
+  pointer-events:none;
+  width:100%;
+  height:100%;
+}
 
-        .timer {
-            font-family: 'Orbitron', sans-serif;
-            color: var(--neon-green);
-            font-size: 1em;
-            margin: 15px 0;
-            padding: 12px;
-            border: 1px solid var(--neon-green);
-            border-radius: 8px;
-            background-color: rgba(0, 255, 65, 0.05);
-        }
+.neon-ring{
+  position:absolute;
+  border-radius:50%;
+  border:2px solid;
+  filter:blur(1px);
+}
 
-        /* Keyframe Animations */
-        @keyframes pulse {
-            0% { 
-                text-shadow: 0 0 5px var(--neon-green), 0 0 10px var(--neon-green), 0 0 20px var(--neon-green-glow);
-                box-shadow: inset 0 0 10px var(--neon-green-glow), 0 0 15px var(--neon-green);
-            }
-            100% { 
-                text-shadow: 0 0 10px var(--neon-green), 0 0 20px var(--neon-green), 0 0 30px var(--neon-green-glow);
-                box-shadow: inset 0 0 15px var(--neon-green), 0 0 25px var(--neon-green), 0 0 40px var(--neon-green-glow);
-            }
-        }
+.ring1{
+  width:min(600px, 90vw);
+  height:min(600px, 90vw);
+  border-color:rgba(0,255,255,0.3);
+  animation:spin 20s linear infinite;
+  box-shadow:0 0 40px var(--glow-cyan);
+}
 
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid var(--neon-green);
-            border-radius: 50%;
-            border-top-color: transparent;
-            animation: spin 1s linear infinite;
-            margin-right: 10px;
-            vertical-align: middle;
-        }
+.ring2{
+  width:min(450px, 70vw);
+  height:min(450px, 70vw);
+  border-color:rgba(184,0,255,0.3);
+  animation:spin 15s linear infinite reverse;
+  box-shadow:0 0 40px var(--glow-purple);
+}
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+.ring3{
+  width:min(300px, 50vw);
+  height:min(300px, 50vw);
+  border-color:rgba(255,0,255,0.3);
+  animation:spin 25s linear infinite;
+  box-shadow:0 0 40px rgba(255,0,255,0.5);
+}
 
-        @media (max-width: 600px) {
-            h1 {
-                font-size: 2em;
-            }
-            
-            p {
-                font-size: 1em;
-            }
-            
-            .join-button {
-                font-size: 1.1em;
-                padding: 12px 25px;
-            }
-            
-            .container {
-                padding: 20px;
-            }
-        }
+@keyframes spin{
+  0%{transform:rotate(0deg)}
+  100%{transform:rotate(360deg)}
+}
 
-    </style>
+/* Radial Glow */
+.radial-glow{
+  position:fixed;
+  inset:0;
+  background:radial-gradient(
+    circle at center,
+    rgba(0,255,255,0.15) 0%,
+    rgba(184,0,255,0.1) 35%,
+    transparent 70%
+  );
+  z-index:-6;
+  animation:pulse-glow 4s infinite alternate ease-in-out;
+}
+
+@keyframes pulse-glow{
+  0%{
+    opacity:0.5;
+    transform:scale(0.95);
+  }
+  100%{
+    opacity:1;
+    transform:scale(1.05);
+  }
+}
+
+/* Main Container */
+.container{
+  background:linear-gradient(135deg, rgba(0,20,40,0.8) 0%, rgba(20,0,40,0.8) 100%);
+  padding:clamp(40px, 5vw, 60px) clamp(30px, 5vw, 70px);
+  border-radius:30px;
+  border:2px solid;
+  border-image:linear-gradient(135deg, var(--neon-cyan), var(--neon-purple), var(--neon-pink)) 1;
+  backdrop-filter:blur(20px);
+  text-align:center;
+  position:relative;
+  animation:float-container 5s ease-in-out infinite alternate;
+  box-shadow:
+    0 0 60px rgba(0,255,255,0.4),
+    0 0 100px rgba(184,0,255,0.3),
+    inset 0 0 40px rgba(0,255,255,0.1);
+  z-index:10;
+  max-width:min(500px, 90vw);
+  width:100%;
+  margin:auto;
+  overflow:hidden;
+}
+
+@keyframes float-container{
+  0%{
+    transform:translateY(0) scale(1);
+  }
+  100%{
+    transform:translateY(-15px) scale(1.02);
+  }
+}
+
+.container::before{
+  content:'';
+  position:absolute;
+  top:-50%;
+  left:-50%;
+  width:200%;
+  height:200%;
+  background:conic-gradient(
+    from 0deg,
+    transparent,
+    rgba(0,255,255,0.3),
+    transparent,
+    rgba(184,0,255,0.3),
+    transparent
+  );
+  animation:rotate-border 6s linear infinite;
+  z-index:-1;
+}
+
+@keyframes rotate-border{
+  0%{transform:rotate(0deg)}
+  100%{transform:rotate(360deg)}
+}
+
+/* Logo/Badge */
+.logo-badge{
+  width:clamp(80px, 15vw, 100px);
+  height:clamp(80px, 15vw, 100px);
+  margin:0 auto 20px;
+  border-radius:50%;
+  background:linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:
+    0 0 30px var(--glow-cyan),
+    0 0 50px var(--glow-purple);
+  animation:pulse-badge 2s infinite ease-in-out;
+  position:relative;
+  padding:5px;
+}
+
+@keyframes pulse-badge{
+  0%,100%{
+    transform:scale(1);
+    box-shadow:
+      0 0 30px var(--glow-cyan),
+      0 0 50px var(--glow-purple);
+  }
+  50%{
+    transform:scale(1.1);
+    box-shadow:
+      0 0 50px var(--glow-cyan),
+      0 0 70px var(--glow-purple),
+      0 0 90px rgba(255,0,255,0.3);
+  }
+}
+
+.logo-badge::before{
+  content:'';
+  position:absolute;
+  inset:-5px;
+  border-radius:50%;
+  border:2px solid transparent;
+  border-top-color:var(--neon-cyan);
+  border-right-color:var(--neon-purple);
+  animation:spin 3s linear infinite;
+}
+
+.logo-badge img{
+  width:100%;
+  height:100%;
+  border-radius:50%;
+  object-fit:cover;
+}
+
+/* Title */
+h1{
+  font-family:'Orbitron', sans-serif;
+  font-weight:900;
+  font-size:clamp(2em, 6vw, 3.2em);
+  background:linear-gradient(135deg, var(--neon-cyan) 0%, var(--neon-purple) 50%, var(--neon-pink) 100%);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
+  margin:0 0 15px 0;
+  letter-spacing:4px;
+  text-shadow:0 0 30px var(--glow-cyan);
+  animation:glow-title 3s infinite alternate ease-in-out;
+  line-height:1.2;
+}
+
+@keyframes glow-title{
+  0%{
+    filter:drop-shadow(0 0 10px var(--glow-cyan));
+  }
+  100%{
+    filter:drop-shadow(0 0 25px var(--glow-purple));
+  }
+}
+
+/* Status */
+.status{
+  font-size:clamp(1.2em, 4vw, 1.5em);
+  color:#fff;
+  margin:20px 0 10px 0;
+  font-weight:300;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  position:relative;
+  display:inline-block;
+  padding:0 40px;
+}
+
+.status::before, .status::after{
+  content:'';
+  position:absolute;
+  width:30px;
+  height:2px;
+  background:linear-gradient(90deg, transparent, var(--neon-cyan));
+  top:50%;
+}
+
+.status::before{
+  left:0;
+}
+
+.status::after{
+  right:0;
+  background:linear-gradient(90deg, var(--neon-cyan), transparent);
+}
+
+/* Full Name Display */
+.fullname-display{
+  font-size:clamp(1.2em, 4vw, 1.4em);
+  color:var(--neon-cyan);
+  margin:0 0 30px 0;
+  font-weight:600;
+  letter-spacing:1px;
+  text-shadow:0 0 15px var(--glow-cyan);
+  font-family:'Orbitron', sans-serif;
+  animation:pulse-name 3s infinite ease-in-out;
+  min-height:30px;
+  line-height:1.3;
+  padding:0 10px;
+  word-wrap:break-word;
+}
+
+@keyframes pulse-name{
+  0%,100%{
+    opacity:0.8;
+    text-shadow:0 0 10px var(--glow-cyan);
+  }
+  50%{
+    opacity:1;
+    text-shadow:
+      0 0 20px var(--glow-cyan),
+      0 0 10px var(--glow-purple);
+  }
+}
+
+/* Scanning Animation */
+.scanning{
+  position:relative;
+  padding:8px 0;
+  margin:20px 0;
+}
+
+.scan-line{
+  width:100%;
+  height:2px;
+  background:linear-gradient(90deg, transparent, var(--neon-green), transparent);
+  animation:scan 2s infinite ease-in-out;
+  box-shadow:0 0 10px var(--glow-green);
+}
+
+@keyframes scan{
+  0%,100%{
+    opacity:0.3;
+    transform:scaleX(0.5);
+  }
+  50%{
+    opacity:1;
+    transform:scaleX(1);
+  }
+}
+
+/* Join Now Button */
+.join-now-button{
+  padding:clamp(16px, 4vw, 20px) clamp(30px, 6vw, 60px);
+  font-size:clamp(1.1em, 3vw, 1.3em);
+  border-radius:50px;
+  border:2px solid var(--neon-green);
+  background:linear-gradient(135deg, rgba(0,255,0,0.3), rgba(0,128,0,0.3));
+  color:#fff;
+  cursor:pointer;
+  transition:all 0.3s ease;
+  font-family:'Orbitron', sans-serif;
+  font-weight:700;
+  letter-spacing:3px;
+  text-transform:uppercase;
+  position:relative;
+  overflow:hidden;
+  box-shadow:
+    0 0 20px var(--glow-green),
+    inset 0 0 20px rgba(0,255,0,0.1);
+  display:inline-block;
+  text-decoration:none;
+  margin:10px 5px;
+}
+
+.join-now-button::before{
+  content:'';
+  position:absolute;
+  top:50%;
+  left:50%;
+  width:0;
+  height:0;
+  border-radius:50%;
+  background:radial-gradient(circle, var(--neon-green), transparent);
+  transform:translate(-50%, -50%);
+  transition:width 0.6s, height 0.6s;
+}
+
+.join-now-button:hover::before{
+  width:300px;
+  height:300px;
+}
+
+.join-now-button:hover{
+  background:linear-gradient(135deg, rgba(0,255,0,0.5), rgba(0,128,0,0.5));
+  transform:translateY(-3px) scale(1.05);
+  box-shadow:
+    0 0 40px var(--glow-green),
+    0 0 60px rgba(0,128,0,0.5),
+    0 10px 30px rgba(0,0,0,0.5);
+  border-color:#00cc00;
+}
+
+.join-now-button:active{
+  transform:translateY(0) scale(1);
+}
+
+.join-now-button:disabled{
+  opacity:0.6;
+  cursor:not-allowed;
+  transform:none;
+}
+
+.button-text{
+  position:relative;
+  z-index:1;
+}
+
+/* Loading Animation */
+.loading{
+  display:none;
+  font-size:1em;
+  color:#aaf;
+  margin:20px 0;
+  letter-spacing:1px;
+  animation:pulse-loading 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse-loading{
+  0%,100%{opacity:0.5}
+  50%{opacity:1}
+}
+
+/* Features */
+.features{
+  display:flex;
+  justify-content:center;
+  gap:clamp(15px, 3vw, 30px);
+  margin-top:25px;
+  font-size:clamp(0.8em, 2vw, 0.95em);
+  color:#aaf;
+  flex-wrap:wrap;
+}
+
+.feature{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-weight:300;
+  letter-spacing:1px;
+}
+
+.feature-icon{
+  width:8px;
+  height:8px;
+  background:var(--neon-green);
+  border-radius:50%;
+  box-shadow:0 0 10px var(--glow-green);
+  animation:pulse-icon 2s infinite ease-in-out;
+}
+
+@keyframes pulse-icon{
+  0%,100%{
+    transform:scale(1);
+    opacity:0.7;
+  }
+  50%{
+    transform:scale(1.3);
+    opacity:1;
+  }
+}
+
+/* Success Animation */
+.success-animation{
+  animation:fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn{
+  from{
+    opacity:0;
+    transform:translateY(-10px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
+/* Responsive */
+@media(max-width:480px){
+  body{padding:10px}
+  .container{
+    padding:30px 20px;
+    border-radius:20px;
+  }
+  .status{padding:0 20px}
+  .join-now-button{
+    padding:15px 30px;
+    font-size:1.1em;
+  }
+  .features{
+    flex-direction:column;
+    gap:10px;
+  }
+}
+</style>
 </head>
 <body>
-    <!-- The canvas for the background effect -->
-    <canvas id="matrix-bg"></canvas>
 
-    <div class="container">
-        <h1>TEAM SECRET</h1>
-        <p>You are about to join an exclusive Telegram group.</p>
-        
-        <div class="timer" id="timer">
-            Session expires in: <span id="countdown">30:00</span>
-        </div>
-        
-        <div class="status-message" id="statusMessage"></div>
-        
-        <button id="joinBtn" class="join-button">
-            <span id="btnText">Join Now</span>
-            <span id="btnLoader" style="display:none;" class="loading"></span>
-        </button>
+<div id="grid-bg"></div>
+<canvas id='matrix-bg'></canvas>
+<div class='particles'></div>
+
+<div class='ring-container'>
+  <div class='neon-ring ring1'></div>
+  <div class='neon-ring ring2'></div>
+  <div class='neon-ring ring3'></div>
+</div>
+
+<div class='radial-glow'></div>
+
+<div class='container'>
+  <div class='logo-badge'>
+    <img src='https://i.ibb.co/8g2YxXq6/tmpyb9cwaub.jpg' alt='Team Secret Logo'>
+  </div>
+  <h1>TEAM SECRET</h1>
+  <div class='status'>Access Granted</div>
+  <div id="fullname" class='fullname-display success-animation'>Loading...</div>
+  
+  <div class='scanning'>
+    <div class='scan-line'></div>
+  </div>
+  
+  <button id="joinBtn" class='join-now-button success-animation'>
+    <span class='button-text'>Join Now</span>
+  </button>
+  
+  <div id="loading" class='loading'>Opening group...</div>
+  
+  <div class='features success-animation'>
+    <div class='feature'>
+      <div class='feature-icon'></div>
+      <span>Verified</span>
     </div>
+    <div class='feature'>
+      <div class='feature-icon'></div>
+      <span>Secure</span>
+    </div>
+    <div class='feature'>
+      <div class='feature-icon'></div>
+      <span>Exclusive</span>
+    </div>
+  </div>
+</div>
 
-    <script>
-        // --- Hacker Matrix Background Effect Script ---
-        const canvas = document.getElementById('matrix-bg');
-        const ctx = canvas.getContext('2d');
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+/* Matrix Background */
+const canvas = document.getElementById('matrix-bg');
+const ctx = canvas.getContext('2d');
 
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
-        // Matrix characters
-        const matrix = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789@#$%^&*()*&^%+-/~{[|`]}";
-        const matrixArray = matrix.split("");
+const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@#$%^&*()';
+const arr = chars.split('');
+const fontSize = 14;
+let cols = Math.floor(canvas.width / fontSize);
+let drops = new Array(cols).fill(1);
 
-        const fontSize = 14;
-        let columns = Math.floor(canvas.width / fontSize);
+function drawMatrix() {
+  ctx.fillStyle = 'rgba(0,0,0,0.05)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'rgba(0,255,255,0.5)';
+  ctx.font = fontSize + 'px monospace';
+  
+  for (let i = 0; i < drops.length; i++) {
+    const text = arr[Math.floor(Math.random() * arr.length)];
+    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+      drops[i] = 0;
+    }
+    drops[i]++;
+  }
+}
 
-        // An array of drops - one for each column
-        const drops = [];
-        for(let x = 0; x < columns; x++) {
-            drops[x] = Math.floor(Math.random() * canvas.height / fontSize);
-        }
+// Start matrix animation
+const matrixInterval = setInterval(drawMatrix, 40);
 
-        // The drawing function
-        function drawMatrix() {
-            // Semi-transparent black for fade effect
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+/* Floating Particles */
+const particleContainer = document.querySelector('.particles');
+for(let i = 0; i < 40; i++){
+  let particle = document.createElement('div');
+  particle.classList.add('particle');
+  particle.style.left = Math.random() * 100 + '%';
+  particle.style.top = Math.random() * 100 + '%';
+  particle.style.animationDelay = (Math.random() * 8) + 's';
+  particle.style.animationDuration = (5 + Math.random() * 5) + 's';
+  particleContainer.appendChild(particle);
+}
 
-            ctx.fillStyle = '#00ff41';
-            ctx.font = fontSize + 'px monospace';
+/* Telegram WebApp Integration */
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+tg.enableClosingConfirmation();
 
-            // Loop through drops
-            for(let i = 0; i < drops.length; i++) {
-                // A random character from the matrix array
-                const text = matrixArray[Math.floor(Math.random() * matrixArray.length)];
-                
-                // Draw the character
-                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+// Display user's full name
+const user = tg.initDataUnsafe?.user;
+const fullnameElement = document.getElementById('fullname');
 
-                // Move the drop down
-                drops[i]++;
-                
-                // Randomly reset drop to top
-                if(drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-                    drops[i] = 0;
-                }
-            }
-        }
+if (user) {
+    let displayName = user.first_name || '';
+    if (user.last_name) {
+        displayName += ' ' + user.last_name;
+    }
+    if (!displayName.trim() && user.username) {
+        displayName = `@${user.username}`;
+    }
+    fullnameElement.textContent = displayName.trim() || 'User';
+} else {
+    fullnameElement.textContent = 'User';
+}
 
-        // Start the matrix animation
-        const matrixInterval = setInterval(drawMatrix, 35);
+const token = "{{ token }}";
 
-        // --- Main Application Logic ---
-        document.addEventListener('DOMContentLoaded', async () => {
-            const joinBtn = document.getElementById('joinBtn');
-            const btnText = document.getElementById('btnText');
-            const btnLoader = document.getElementById('btnLoader');
-            const statusMessage = document.getElementById('statusMessage');
-            const countdownElement = document.getElementById('countdown');
+// Check if ad SDK is available
+function isAdSDKAvailable() {
+    return typeof show_10391340 === 'function';
+}
+
+document.getElementById('joinBtn').addEventListener('click', async () => {
+    const joinBtn = document.getElementById('joinBtn');
+    const loading = document.getElementById('loading');
+    
+    joinBtn.disabled = true;
+    joinBtn.querySelector('.button-text').textContent = 'Loading...';
+    loading.style.display = 'block';
+    
+    try {
+        // Check if ad SDK is available
+        if (isAdSDKAvailable()) {
+            loading.textContent = 'Loading ad... Please wait';
             
-            // Get token from URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const token = urlParams.get('token');
-            
-            if (!token) {
-                showError('No verification token found. Please restart from Telegram.');
-                joinBtn.disabled = true;
-                return;
-            }
-            
-            let sessionExpiry = null;
-            let countdownInterval = null;
-            
-            // Initialize the session
-            try {
-                showStatus('Initializing verification...', 'info');
+            // Show rewarded interstitial ad
+            await show_10391340().then(() => {
+                // User watched the ad - grant access
+                loading.textContent = 'Thank you! Opening group...';
                 
-                // Verify the session first
-                const verifyResponse = await fetch(`/api/verify/${token}`);
-                
-                if (!verifyResponse.ok) {
-                    const error = await verifyResponse.json().catch(() => ({ detail: 'Verification failed' }));
-                    
-                    if (verifyResponse.status === 404) {
-                        showError('Session not found or has expired.');
-                    } else if (verifyResponse.status === 410) {
-                        showError('Session expired. Please restart verification.');
-                    } else if (verifyResponse.status === 429) {
-                        showError('Too many attempts. Please try again later.');
-                    } else {
-                        showError(error.detail || 'Verification failed');
-                    }
-                    
-                    joinBtn.disabled = true;
-                    return;
-                }
-                
-                const sessionData = await verifyResponse.json();
-                sessionExpiry = new Date(sessionData.expires_at);
-                
-                // Start countdown timer
-                startCountdown(sessionExpiry);
-                
-                showStatus('Ready for verification!', 'success');
-                
-            } catch (error) {
-                console.error('Initialization error:', error);
-                showError('Failed to initialize. Please check your connection.');
-                joinBtn.disabled = true;
-                return;
-            }
-            
-            // Handle join button click
-            joinBtn.addEventListener('click', async () => {
-                btnText.textContent = 'Processing...';
-                btnLoader.style.display = 'inline-block';
-                joinBtn.disabled = true;
-                
-                try {
-                    // Complete verification
-                    const response = await fetch(`/api/verify/${token}/complete`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
+                // Continue with group access after ad
+                setTimeout(async () => {
+                    try {
+                        const response = await fetch(`/getgrouplink/${token}`);
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
                         }
-                    });
-                    
-                    if (!response.ok) {
-                        const error = await response.json().catch(() => ({ detail: 'Verification failed' }));
-                        showError(error.detail || 'Failed to complete verification');
                         
-                        // Reset button
-                        btnText.textContent = 'Join Now';
-                        btnLoader.style.display = 'none';
-                        joinBtn.disabled = false;
-                        return;
-                    }
-                    
-                    const data = await response.json();
-                    
-                    if (data.success && data.group_link) {
-                        showStatus('Success! Opening Telegram...', 'success');
+                        const data = await response.json();
                         
-                        // Use Telegram WebApp if available, otherwise regular window.open
-                        if (window.Telegram && window.Telegram.WebApp) {
-                            window.Telegram.WebApp.openLink(data.group_link);
+                        if (data.url) {
+                            tg.openTelegramLink(data.url);
+                            setTimeout(() => tg.close(), 1500);
                         } else {
-                            window.open(data.group_link, '_blank');
+                            alert('Error: Could not retrieve the group link.');
+                            joinBtn.disabled = false;
+                            joinBtn.querySelector('.button-text').textContent = 'Join Now';
+                            loading.style.display = 'none';
                         }
-                        
-                        // Close after delay
-                        setTimeout(() => {
-                            if (window.Telegram && window.Telegram.WebApp) {
-                                window.Telegram.WebApp.close();
-                            }
-                        }, 2000);
-                        
-                    } else {
-                        showError('Failed to get group link');
-                        btnText.textContent = 'Join Now';
-                        btnLoader.style.display = 'none';
+                    } catch (error) {
+                        console.error('Join error:', error);
+                        alert('An error occurred. Please try again.');
                         joinBtn.disabled = false;
+                        joinBtn.querySelector('.button-text').textContent = 'Join Now';
+                        loading.style.display = 'none';
                     }
-                    
-                } catch (error) {
-                    console.error('Join error:', error);
-                    showError('Network error. Please try again.');
-                    btnText.textContent = 'Join Now';
-                    btnLoader.style.display = 'none';
-                    joinBtn.disabled = false;
-                }
+                }, 1000);
+                
+            }).catch((error) => {
+                console.error('Ad error:', error);
+                alert('Ad failed to load. Please try again.');
+                joinBtn.disabled = false;
+                joinBtn.querySelector('.button-text').textContent = 'Join Now';
+                loading.style.display = 'none';
             });
+        } else {
+            // If ad SDK is not available, proceed without ad
+            loading.textContent = 'Opening group...';
             
-            // Countdown timer function
-            function startCountdown(expiryTime) {
-                function updateTimer() {
-                    const now = new Date();
-                    const diff = expiryTime - now;
-                    
-                    if (diff <= 0) {
-                        clearInterval(countdownInterval);
-                        countdownElement.textContent = 'EXPIRED';
-                        showError('Session expired. Please restart verification.');
-                        joinBtn.disabled = true;
-                        return;
-                    }
-                    
-                    const minutes = Math.floor(diff / 1000 / 60);
-                    const seconds = Math.floor((diff / 1000) % 60);
-                    
-                    countdownElement.textContent = 
-                        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                }
-                
-                updateTimer();
-                countdownInterval = setInterval(updateTimer, 1000);
+            const response = await fetch(`/getgrouplink/${token}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
             
-            // Helper functions for showing status/error messages
-            function showStatus(message, type = 'info') {
-                statusMessage.textContent = message;
-                statusMessage.className = 'status-message';
-                
-                if (type === 'success') {
-                    statusMessage.classList.add('status-success');
-                } else if (type === 'error') {
-                    statusMessage.classList.add('status-error');
-                }
-                
-                statusMessage.style.display = 'block';
-            }
+            const data = await response.json();
             
-            function showError(message) {
-                showStatus(message, 'error');
+            if (data.url) {
+                tg.openTelegramLink(data.url);
+                setTimeout(() => tg.close(), 1500);
+            } else {
+                alert('Error: Could not retrieve the group link.');
+                joinBtn.disabled = false;
+                joinBtn.querySelector('.button-text').textContent = 'Join Now';
+                loading.style.display = 'none';
             }
-            
-            function hideStatus() {
-                statusMessage.style.display = 'none';
-            }
-        });
-    </script>
+        }
+    } catch (error) {
+        console.error('Join error:', error);
+        alert('An error occurred. Please try again.');
+        joinBtn.disabled = false;
+        joinBtn.querySelector('.button-text').textContent = 'Join Now';
+        loading.style.display = 'none';
+    }
+});
+
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+    clearInterval(matrixInterval);
+});
+</script>
 </body>
 </html>

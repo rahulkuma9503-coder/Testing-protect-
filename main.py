@@ -4,10 +4,12 @@ import uuid
 import base64
 import asyncio
 import datetime
+import io
 from typing import Optional, List, Dict, Any
 from pymongo import MongoClient
 from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.templating import Jinja2Templates
+from fastapi.responses import StreamingResponse
 
 # --- Telegram Imports ---
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, ChatMember, ChatInviteLink
@@ -35,6 +37,9 @@ users_collection = db["users"]
 broadcast_collection = db["broadcast_history"]
 channels_collection = db["channels"]
 
+# Add ad tracking collection
+ad_impressions_collection = db["ad_impressions"]
+
 def init_db():
     """Verifies the MongoDB connection."""
     try:
@@ -46,6 +51,9 @@ def init_db():
         links_collection.create_index("created_by")
         links_collection.create_index("active")
         channels_collection.create_index("channel_id", unique=True)
+        # Add index for ad impressions
+        ad_impressions_collection.create_index([("user_id", 1), ("timestamp", -1)])
+        ad_impressions_collection.create_index("ad_type")
         logger.info("✅ Database indexes created")
     except Exception as e:
         logger.error(f"❌ MongoDB error: {e}")
@@ -486,12 +494,6 @@ telegram_bot_app = Application.builder().token(os.environ.get("TELEGRAM_TOKEN"))
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handles the /start command."""
-    # Show typing action
-    await context.bot.send_chat_action(
-        chat_id=update.effective_chat.id, 
-        action="typing"
-    )
-    
     user_id = update.effective_user.id
     
     # Store user
@@ -566,8 +568,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         link_data = links_collection.find_one({"_id": encoded_id, "active": True})
 
         if link_data:
-            # Use verification page instead of direct join
-            web_app_url = f"{os.environ.get('RENDER_EXTERNAL_URL')}/verify?token={encoded_id}"
+            # Updated: Include user_id in the WebApp URL for ad tracking
+            web_app_url = f"{os.environ.get('RENDER_EXTERNAL_URL')}/verify?token={encoded_id}&user_id={update.effective_user.id}"
             
             keyboard = [[InlineKeyboardButton("🔗 Join Group", web_app=WebAppInfo(url=web_app_url))]]
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -603,11 +605,28 @@ I help you keep your channel links safe & secure.
 • 🛡️ Anti-Forward Protection
 • 🎯 Easy to use UI""".format(username=user_name)
     
-    # Create keyboard WITHOUT support channel buttons
+    # Create keyboard with support channel button
     keyboard = []
+    
+    support_channels = get_support_channels()
+    if support_channels:
+        # Get channel info and create individual buttons
+        channel_info = await get_channel_info_for_user(user_id)
+        
+        # Add individual channel buttons (split into rows of 2)
+        for i in range(0, len(channel_info["channels"]), 2):
+            row_buttons = []
+            for j in range(2):
+                if i + j < len(channel_info["channels"]):
+                    channel = channel_info["channels"][i + j]
+                    button_text = f"🌟 {channel['display_name'][:15]}"  # Limit text length
+                    row_buttons.append(InlineKeyboardButton(button_text, url=channel["invite_link"]))
+            if row_buttons:
+                keyboard.append(row_buttons)
+    
     keyboard.append([InlineKeyboardButton("🚀 Create Protected Link", callback_data="create_link")])
     
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
     
     await update.message.reply_text(welcome_msg, reply_markup=reply_markup)
 
@@ -615,13 +634,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     """Handle button callbacks."""
     query = update.callback_query
     await query.answer()
-    
-    # Show typing action for certain callbacks
-    if query.data in ["check_join", "create_link", "confirm_broadcast"] or query.data.startswith("check_join_") or query.data.startswith("revoke_"):
-        await context.bot.send_chat_action(
-            chat_id=update.effective_chat.id, 
-            action="typing"
-        )
     
     if query.data == "check_join":
         if await check_channel_membership(query.from_user.id, context):
@@ -642,7 +654,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             link_data = links_collection.find_one({"_id": encoded_id, "active": True})
             
             if link_data:
-                web_app_url = f"{os.environ.get('RENDER_EXTERNAL_URL')}/verify?token={encoded_id}"
+                # Updated: Include user_id in the WebApp URL for ad tracking
+                web_app_url = f"{os.environ.get('RENDER_EXTERNAL_URL')}/verify?token={encoded_id}&user_id={query.from_user.id}"
                 
                 keyboard = [[InlineKeyboardButton("🔗 Join Group", web_app=WebAppInfo(url=web_app_url))]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
@@ -677,12 +690,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def protect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Create protected link for ANY Telegram link (group or channel)."""
-    # Show typing action
-    await context.bot.send_chat_action(
-        chat_id=update.effective_chat.id, 
-        action="typing"
-    )
-    
     # Check channel membership
     support_channels = get_support_channels()
     if support_channels and not await check_channel_membership(update.effective_user.id, context):
@@ -782,12 +789,6 @@ async def protect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def revoke_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Revoke a link."""
-    # Show typing action
-    await context.bot.send_chat_action(
-        chat_id=update.effective_chat.id, 
-        action="typing"
-    )
-    
     # Check channel membership
     support_channels = get_support_channels()
     if support_channels and not await check_channel_membership(update.effective_user.id, context):
@@ -937,12 +938,6 @@ async def handle_revoke_link(update: Update, context: ContextTypes.DEFAULT_TYPE,
 
 async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Admin broadcast."""
-    # Show typing action
-    await context.bot.send_chat_action(
-        chat_id=update.effective_chat.id, 
-        action="typing"
-    )
-    
     admin_id = int(os.environ.get("ADMIN_ID", 0))
     if update.effective_user.id != admin_id:
         await update.message.reply_text(
@@ -1038,12 +1033,6 @@ async def handle_broadcast_confirmation(update: Update, context: ContextTypes.DE
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show stats."""
-    # Show typing action
-    await context.bot.send_chat_action(
-        chat_id=update.effective_chat.id, 
-        action="typing"
-    )
-    
     admin_id = int(os.environ.get("ADMIN_ID", 0))
     if update.effective_user.id != admin_id:
         await update.message.reply_text(
@@ -1069,6 +1058,12 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     for result in total_clicks_result:
         total_clicks = result.get('total_clicks', 0)
     
+    # Get ad statistics
+    total_ad_impressions = ad_impressions_collection.count_documents({})
+    today_ads = ad_impressions_collection.count_documents({
+        "timestamp": {"$gte": today}
+    })
+    
     await update.message.reply_text(
         f"📊 *System Analytics Dashboard*\n\n"
         f"👥 *User Statistics*\n"
@@ -1079,22 +1074,19 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         f"• 🟢 Active Links: `{active_links}`\n"
         f"• 🆕 Created Today: `{new_links_today}`\n"
         f"• 👆 Total Clicks: `{total_clicks}`\n\n"
+        f"💰 *Ad Revenue Statistics*\n"
+        f"• 📱 Total Ad Impressions: `{total_ad_impressions}`\n"
+        f"• 📈 Today's Ads: `{today_ads}`\n\n"
         f"⚙️ *System Status*\n"
         f"• 🗄️ Database: 🟢 Operational\n"
         f"• 🤖 Bot: 🟢 Online\n"
         f"• ⚡ Uptime: 100%\n"
-        f"• 🕐 Last Update: {datetime.datetime.now().strftime('%Y-%m-d %H:%M:%S')}",
+        f"• 🕐 Last Update: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         parse_mode=ParseMode.MARKDOWN
     )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show help."""
-    # Show typing action
-    await context.bot.send_chat_action(
-        chat_id=update.effective_chat.id, 
-        action="typing"
-    )
-    
     user_id = update.effective_user.id
     
     # Check channel membership
@@ -1129,7 +1121,26 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
         return
     
-    # Show help WITHOUT channel buttons
+    keyboard = []
+    
+    support_channels = get_support_channels()
+    if support_channels:
+        # Get channel info and create individual buttons
+        channel_info = await get_channel_info_for_user(user_id)
+        
+        # Add individual channel buttons (split into rows of 2)
+        for i in range(0, len(channel_info["channels"]), 2):
+            row_buttons = []
+            for j in range(2):
+                if i + j < len(channel_info["channels"]):
+                    channel = channel_info["channels"][i + j]
+                    button_text = f"🌟 {channel['display_name'][:15]}"  # Limit text length
+                    row_buttons.append(InlineKeyboardButton(button_text, url=channel["invite_link"]))
+            if row_buttons:
+                keyboard.append(row_buttons)
+    
+    reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
+    
     await update.message.reply_text(
         "🛡️ *LinkShield Pro - Help Center*\n\n"
         "✨ *What I Can Protect:*\n"
@@ -1150,7 +1161,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "💡 *Pro Tips:*\n"
         "• Works with any t.me link\n"
         "• Monitor link analytics\n"
-        "• Revoke unused links",
+        "• Revoke unused links\n"
+        "• Join our support channels",
+        reply_markup=reply_markup,
         parse_mode=ParseMode.MARKDOWN
     )
 
@@ -1245,9 +1258,45 @@ async def telegram_webhook(request: Request, token: str):
     return Response(status_code=200)
 
 @app.get("/verify")
-async def verify_page(request: Request, token: str):
-    """Verification page."""
-    return templates.TemplateResponse("verify.html", {"request": request, "token": token})
+async def verify_page(request: Request, token: str, user_id: Optional[int] = None):
+    """Verification page with ad support."""
+    # Validate token
+    link_data = links_collection.find_one({"_id": token, "active": True})
+    if not link_data:
+        raise HTTPException(status_code=404, detail="Link not found or expired")
+    
+    return templates.TemplateResponse(
+        "verify.html", 
+        {
+            "request": request, 
+            "token": token,
+            "user_id": user_id  # Pass user_id to template for tracking
+        }
+    )
+
+@app.post("/track_ad/{user_id}")
+async def track_ad_impression(user_id: int, ad_type: str = "inApp"):
+    """Track ad impressions for analytics."""
+    try:
+        ad_impressions_collection.insert_one({
+            "user_id": user_id,
+            "ad_type": ad_type,
+            "timestamp": datetime.datetime.now(),
+            "revenue_estimate": 0.01  # Estimated revenue per impression
+        })
+        
+        # Update user's last ad impression time
+        users_collection.update_one(
+            {"user_id": user_id},
+            {"$set": {"last_ad_impression": datetime.datetime.now()}},
+            upsert=True
+        )
+        
+        logger.info(f"Ad impression tracked for user {user_id}, type: {ad_type}")
+        return {"status": "success", "message": "Ad impression tracked"}
+    except Exception as e:
+        logger.error(f"Failed to track ad impression: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/check_membership/{token}")
 async def check_membership_api(token: str, user_id: int):
@@ -1256,6 +1305,17 @@ async def check_membership_api(token: str, user_id: int):
     link_data = links_collection.find_one({"_id": token, "active": True})
     if not link_data:
         raise HTTPException(status_code=404, detail="Link not found")
+    
+    # Track that user is checking membership (potential ad view)
+    try:
+        ad_impressions_collection.insert_one({
+            "user_id": user_id,
+            "ad_type": "verification_page_view",
+            "timestamp": datetime.datetime.now(),
+            "page": "verify"
+        })
+    except Exception as e:
+        logger.error(f"Failed to track page view: {e}")
     
     # Get channel membership info WITH CHANNEL TITLES AND LOGOS
     channel_info = await get_channel_info_for_user(user_id)
@@ -1274,7 +1334,18 @@ async def get_channel_photo(channel_id: str):
         # Get channel data from database
         channel_data = channels_collection.find_one({"channel_id": channel_id})
         if not channel_data or not channel_data.get("photo_id"):
-            raise HTTPException(status_code=404, detail="Channel photo not found")
+            # Return default Telegram logo
+            default_url = "https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg"
+            import requests
+            response = requests.get(default_url)
+            return StreamingResponse(
+                io.BytesIO(response.content),
+                media_type="image/svg+xml",
+                headers={
+                    "Cache-Control": "public, max-age=3600",
+                    "Content-Disposition": f"inline; filename=default_channel.svg"
+                }
+            )
         
         # Get bot instance
         from telegram import Bot
@@ -1286,8 +1357,6 @@ async def get_channel_photo(channel_id: str):
         photo_bytes = await photo_file.download_as_bytearray()
         
         # Return as image
-        import io
-        from fastapi.responses import StreamingResponse
         return StreamingResponse(
             io.BytesIO(photo_bytes),
             media_type="image/jpeg",
@@ -1298,7 +1367,18 @@ async def get_channel_photo(channel_id: str):
         )
     except Exception as e:
         logger.error(f"Failed to get channel photo for {channel_id}: {e}")
-        raise HTTPException(status_code=404, detail="Channel photo not found")
+        # Fallback to default
+        default_url = "https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg"
+        import requests
+        response = requests.get(default_url)
+        return StreamingResponse(
+            io.BytesIO(response.content),
+            media_type="image/svg+xml",
+            headers={
+                "Cache-Control": "public, max-age=3600",
+                "Content-Disposition": "inline; filename=default_channel.svg"
+            }
+        )
 
 @app.get("/join")
 async def join_page(request: Request, token: str, user_id: int):
@@ -1311,16 +1391,36 @@ async def join_page(request: Request, token: str, user_id: int):
     # Check membership
     is_member = await verify_user_membership(user_id)
     if not is_member:
+        # Track failed join attempt (potential ad revenue lost)
+        try:
+            ad_impressions_collection.insert_one({
+                "user_id": user_id,
+                "ad_type": "failed_join_attempt",
+                "timestamp": datetime.datetime.now(),
+                "reason": "not_member"
+            })
+        except Exception as e:
+            logger.error(f"Failed to track failed join: {e}")
+        
         # Redirect to verification page
         raise HTTPException(status_code=303, detail="Not a member of support channels")
     
-    # Increment clicks
-    links_collection.update_one(
-        {"_id": token},
-        {"$inc": {"clicks": 1}}
-    )
+    # Track successful join attempt (ad will be shown)
+    try:
+        ad_impressions_collection.insert_one({
+            "user_id": user_id,
+            "ad_type": "join_page_view",
+            "timestamp": datetime.datetime.now(),
+            "page": "join"
+        })
+    except Exception as e:
+        logger.error(f"Failed to track join page view: {e}")
     
-    return templates.TemplateResponse("join.html", {"request": request, "token": token})
+    return templates.TemplateResponse("join.html", {
+        "request": request, 
+        "token": token,
+        "user_id": user_id  # Pass user_id for tracking
+    })
 
 @app.get("/getgrouplink/{token}")
 async def get_group_link(token: str):
@@ -1332,16 +1432,62 @@ async def get_group_link(token: str):
             {"_id": token},
             {"$inc": {"clicks": 1}}
         )
+        
+        # Track successful link access (after ad view)
         return {"url": link_data.get("telegram_link") or link_data.get("group_link")}
     else:
         raise HTTPException(status_code=404, detail="Link not found")
 
+@app.get("/ad_stats")
+async def get_ad_stats():
+    """Get ad statistics (admin only)."""
+    admin_id = int(os.environ.get("ADMIN_ID", 0))
+    
+    # You would need to implement authentication here
+    # For now, return basic stats
+    
+    today = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    stats = {
+        "total_impressions": ad_impressions_collection.count_documents({}),
+        "today_impressions": ad_impressions_collection.count_documents({"timestamp": {"$gte": today}}),
+        "impressions_by_type": list(ad_impressions_collection.aggregate([
+            {"$group": {"_id": "$ad_type", "count": {"$sum": 1}}}
+        ])),
+        "estimated_revenue": ad_impressions_collection.count_documents({}) * 0.01,  # $0.01 per impression
+        "top_users": list(ad_impressions_collection.aggregate([
+            {"$group": {"_id": "$user_id", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 10}
+        ]))
+    }
+    
+    return stats
+
 @app.get("/")
 async def root():
     """Health check."""
+    try:
+        # Check MongoDB connection
+        client.admin.command('ismaster')
+        db_status = "🟢 Connected"
+    except:
+        db_status = "🔴 Disconnected"
+    
+    # Get basic stats
+    total_users = users_collection.count_documents({})
+    active_links = links_collection.count_documents({"active": True})
+    total_ads = ad_impressions_collection.count_documents({})
+    
     return {
         "status": "ok",
         "service": "LinkShield Pro",
-        "version": "2.0.0",
-        "time": datetime.datetime.now().isoformat()
+        "version": "2.1.0",
+        "time": datetime.datetime.now().isoformat(),
+        "database": db_status,
+        "stats": {
+            "total_users": total_users,
+            "active_links": active_links,
+            "total_ad_impressions": total_ads
+        }
     }

@@ -5,6 +5,7 @@ import base64
 import asyncio
 import datetime
 import io
+import requests  # Added for setting bot commands
 from typing import Optional, List, Dict, Any
 from pymongo import MongoClient
 from fastapi import FastAPI, Request, Response, HTTPException
@@ -1189,6 +1190,40 @@ telegram_bot_app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, stor
 from telegram.ext import CallbackQueryHandler
 telegram_bot_app.add_handler(CallbackQueryHandler(button_callback))
 
+# Function to reset and set bot commands
+def reset_and_set_commands():
+    """Reset old commands and set new premium-style commands."""
+    BOT_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+    if not BOT_TOKEN:
+        logger.error("TELEGRAM_TOKEN not set, cannot set bot commands")
+        return
+    
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/setMyCommands"
+
+    try:
+        # Reset old commands
+        requests.post(url, json={"commands": []})
+        
+        # New premium-style commands
+        commands = [
+            {"command": "start", "description": "🚀 Start the bot"},
+            {"command": "protect", "description": "🔗 Create protected link"},
+            {"command": "revoke", "description": "❌ Revoke a link"},
+            {"command": "help", "description": "❓ Show help menu"},
+            {"command": "stats", "description": "📊 Show stats (Admin only)"},
+            {"command": "broadcast", "description": "📢 Broadcast message (Admin only)"}
+        ]
+        
+        response = requests.post(url, json={"commands": commands})
+        
+        if response.status_code == 200:
+            logger.info("✅ Bot commands updated successfully")
+        else:
+            logger.error(f"❌ Failed to set bot commands: {response.text}")
+            
+    except Exception as e:
+        logger.error(f"❌ Error setting bot commands: {e}")
+
 # --- FastAPI Setup ---
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -1208,6 +1243,9 @@ async def on_startup():
     
     await telegram_bot_app.initialize()
     await telegram_bot_app.start()
+    
+    # Set bot commands
+    reset_and_set_commands()
     
     webhook_url = f"{os.environ.get('RENDER_EXTERNAL_URL')}/{os.environ.get('TELEGRAM_TOKEN')}"
     await telegram_bot_app.bot.set_webhook(url=webhook_url)

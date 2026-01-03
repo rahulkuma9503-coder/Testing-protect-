@@ -5,7 +5,7 @@ import base64
 import asyncio
 import datetime
 import io
-import requests  # Added import
+import requests
 from typing import Optional, List, Dict, Any
 from pymongo import MongoClient
 from fastapi import FastAPI, Request, Response, HTTPException
@@ -103,6 +103,10 @@ async def get_channel_invite_link(context: ContextTypes.DEFAULT_TYPE, channel_id
                (datetime.datetime.now() - channel_data["created_at"]).days < 1:
                 return channel_data["invite_link"]
         
+        # SPECIAL HANDLING FOR TROUBLESOME GROUP
+        if channel_id == "-1002352533677":
+            logger.info(f"⚠️ Special handling for group: {channel_id}")
+        
         # Convert channel_id to appropriate format
         if channel_id.startswith('@'):
             chat_id = channel_id
@@ -116,7 +120,85 @@ async def get_channel_invite_link(context: ContextTypes.DEFAULT_TYPE, channel_id
             except ValueError:
                 chat_id = f"@{channel_id}"
         
-        # Try to create a new invite link
+        # SPECIAL HANDLING: For the problematic group, try different approaches
+        if channel_id == "-1002352533677":
+            logger.info(f"Attempting to get chat info for group {chat_id}")
+            try:
+                # First try to get the chat
+                chat = await context.bot.get_chat(chat_id)
+                logger.info(f"Got chat info for {channel_id}: {chat.title}")
+                
+                # Check if bot is admin
+                me = await context.bot.get_me()
+                try:
+                    chat_member = await context.bot.get_chat_member(chat_id=chat_id, user_id=me.id)
+                    logger.info(f"Bot status in {channel_id}: {chat_member.status}")
+                    is_admin = chat_member.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER]
+                    logger.info(f"Bot is admin: {is_admin}")
+                except Exception as admin_error:
+                    logger.error(f"Failed to check bot admin status: {admin_error}")
+                
+                # Try multiple methods to get invite link
+                invite_methods = []
+                
+                # Method 1: Try to create new invite link
+                try:
+                    invite_link = await context.bot.create_chat_invite_link(
+                        chat_id=chat_id,
+                        creates_join_request=False,  # Changed for group compatibility
+                        name="Group Access Link",
+                        expire_date=None,
+                        member_limit=None
+                    )
+                    invite_url = invite_link.invite_link
+                    invite_methods.append(("Created new link", invite_url))
+                except Exception as e1:
+                    logger.warning(f"Method 1 failed: {e1}")
+                
+                # Method 2: Try existing invite link
+                try:
+                    if chat.invite_link:
+                        invite_methods.append(("Existing link", chat.invite_link))
+                except Exception as e2:
+                    logger.warning(f"Method 2 failed: {e2}")
+                
+                # Method 3: Try to get exported invite links
+                try:
+                    # Note: This requires bot to be admin
+                    export_result = await context.bot.export_chat_invite_link(chat_id=chat_id)
+                    invite_methods.append(("Exported link", export_result))
+                except Exception as e3:
+                    logger.warning(f"Method 3 failed: {e3}")
+                
+                # Choose the best method
+                if invite_methods:
+                    method_name, invite_url = invite_methods[0]
+                    logger.info(f"Using {method_name} for {channel_id}: {invite_url}")
+                else:
+                    # Fallback
+                    invite_url = f"https://t.me/c/{str(abs(chat_id))[4:]}"
+                    logger.info(f"Using fallback link: {invite_url}")
+                
+                # Save to database
+                channels_collection.update_one(
+                    {"channel_id": channel_id},
+                    {"$set": {
+                        "invite_link": invite_url,
+                        "created_at": datetime.datetime.now(),
+                        "last_updated": datetime.datetime.now(),
+                        "title": chat.title if hasattr(chat, 'title') else "Unknown Group"
+                    }},
+                    upsert=True
+                )
+                
+                logger.info(f"✅ Created invite link for group {channel_id}")
+                return invite_url
+                
+            except Exception as e:
+                logger.error(f"❌ Special handling failed for {channel_id}: {e}")
+                # Fall through to standard method
+        
+        # Standard method for other groups
         try:
             invite_link = await context.bot.create_chat_invite_link(
                 chat_id=chat_id,
@@ -148,7 +230,7 @@ async def get_channel_invite_link(context: ContextTypes.DEFAULT_TYPE, channel_id
                 chat = await context.bot.get_chat(chat_id)
                 if chat.invite_link:
                     return chat.invite_link
-                elif chat.username:
+                elif hasattr(chat, 'username') and chat.username:
                     return f"https://t.me/{chat.username}"
                 else:
                     # For private groups, use the format
@@ -166,7 +248,7 @@ async def get_channel_invite_link(context: ContextTypes.DEFAULT_TYPE, channel_id
                 return f"https://t.me/{channel_id}"
                 
     except Exception as e:
-        logger.error(f"❌ Error getting channel invite link: {e}")
+        logger.error(f"❌ Error getting channel invite link for {channel_id}: {e}")
         # Final fallback
         if channel_id.startswith('-100'):
             return f"https://t.me/c/{channel_id[4:]}"
@@ -189,6 +271,9 @@ def get_support_channels() -> List[str]:
 
 def format_channel_name(channel_id: str) -> str:
     """Format channel ID for display."""
+    if channel_id == "-1002352533677":
+        return "Special Group (2352533677)"
+    
     if channel_id.startswith('@'):
         return channel_id[1:].replace('_', ' ').title()
     elif channel_id.startswith('-100'):
@@ -282,25 +367,49 @@ async def check_channel_membership(user_id: int, context: ContextTypes.DEFAULT_T
                     # Assume it's a username without @
                     chat_id = f"@{channel}"
             
-            # Debug: Log what we're checking
-            logger.info(f"DEBUG: Checking membership for user {user_id} in channel {channel} (chat_id: {chat_id})")
+            # SPECIAL DEBUGGING FOR PROBLEMATIC GROUP
+            if channel == "-1002352533677":
+                logger.info(f"🔍 SPECIAL DEBUG: Checking membership for user {user_id} in group {channel}")
+                logger.info(f"🔍 Chat ID format: {chat_id} (type: {type(chat_id)})")
+                
+                # First check bot's status in the group
+                try:
+                    me = await context.bot.get_me()
+                    bot_member = await context.bot.get_chat_member(chat_id=chat_id, user_id=me.id)
+                    logger.info(f"🔍 Bot status in group: {bot_member.status}")
+                    logger.info(f"🔍 Bot is admin: {bot_member.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER]}")
+                except Exception as bot_error:
+                    logger.error(f"🔍 Failed to check bot status: {bot_error}")
             
             # Try to get chat member with error handling
             try:
                 chat_member = await context.bot.get_chat_member(chat_id=chat_id, user_id=user_id)
-                logger.info(f"DEBUG: User {user_id} status in {channel}: {chat_member.status}")
+                
+                if channel == "-1002352533677":
+                    logger.info(f"🔍 User {user_id} status in {channel}: {chat_member.status}")
+                    logger.info(f"🔍 Full status info: {chat_member}")
                 
                 # Check if user is a member
                 if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
-                    logger.info(f"✅ User {user_id} is a member of {channel}")
+                    if channel == "-1002352533677":
+                        logger.info(f"✅ SPECIAL DEBUG: User {user_id} IS a member of {channel}")
+                    else:
+                        logger.info(f"✅ User {user_id} is a member of {channel}")
                     continue
                 else:
-                    logger.info(f"❌ User {user_id} is not a member of {channel}. Status: {chat_member.status}")
+                    if channel == "-1002352533677":
+                        logger.info(f"❌ SPECIAL DEBUG: User {user_id} is NOT a member of {channel}. Status: {chat_member.status}")
+                    else:
+                        logger.info(f"❌ User {user_id} is not a member of {channel}. Status: {chat_member.status}")
                     return False
                     
             except BadRequest as e:
                 error_msg = str(e).lower()
                 logger.error(f"BadRequest error for channel {channel}: {error_msg}")
+                
+                if channel == "-1002352533677":
+                    logger.error(f"🔍 SPECIAL DEBUG: Full error for group {channel}: {e}")
+                    logger.error(f"🔍 Error type: {type(e)}")
                 
                 if "user not found" in error_msg:
                     logger.warning(f"User {user_id} not found in {channel}. They might have left or been kicked.")
@@ -323,16 +432,62 @@ async def check_channel_membership(user_id: int, context: ContextTypes.DEFAULT_T
                 elif "not enough rights" in error_msg:
                     logger.warning(f"Bot doesn't have enough rights in {channel}. Cannot check membership.")
                     return False
+                elif "method is available only for supergroups" in error_msg:
+                    logger.warning(f"Group {channel} is not a supergroup. Cannot check membership.")
+                    # Try alternative method
+                    return await check_group_membership_alternative(user_id, context, channel)
                 else:
                     logger.error(f"Unknown BadRequest error for {channel}: {e}")
                     return False
                     
         except Exception as e:
             logger.error(f"❌ Channel check error for {channel}: {e}")
+            if channel == "-1002352533677":
+                logger.error(f"🔍 SPECIAL DEBUG: Exception details: {repr(e)}")
+                import traceback
+                logger.error(f"🔍 Traceback: {traceback.format_exc()}")
             return False
     
     logger.info(f"✅ All membership checks passed for user {user_id}")
     return True
+
+async def check_group_membership_alternative(user_id: int, context: ContextTypes.DEFAULT_TYPE, group_id: str) -> bool:
+    """Alternative method to check group membership."""
+    logger.info(f"Trying alternative membership check for group {group_id}")
+    
+    try:
+        # Convert to proper chat_id
+        if group_id.startswith('-100'):
+            chat_id = int(group_id)
+        else:
+            chat_id = group_id
+        
+        # Method 1: Try to send a message and see if it fails
+        try:
+            # This is just to test if user can receive messages
+            # We'll send a silent message (not really send, just check permissions)
+            await context.bot.get_chat_member(chat_id=chat_id, user_id=user_id)
+            return True
+        except Exception as e:
+            logger.error(f"Alternative method 1 failed: {e}")
+        
+        # Method 2: Try different API approach
+        try:
+            # Get chat and check if it's available
+            chat = await context.bot.get_chat(chat_id)
+            
+            # For basic groups, we might not be able to check membership directly
+            # Return True as a fallback (risky but better than blocking all users)
+            logger.warning(f"⚠️ Cannot reliably check membership for group {group_id}. Assuming user is member.")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Alternative method 2 failed: {e}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Alternative membership check failed: {e}")
+        return False
 
 async def verify_user_membership(user_id: int) -> bool:
     """Check if user is member of ALL support channels without context."""
@@ -364,22 +519,30 @@ async def verify_user_membership(user_id: int) -> bool:
                     except ValueError:
                         chat_id = f"@{channel}"
                 
-                logger.info(f"DEBUG (verify): Checking membership for user {user_id} in channel {channel}")
+                if channel == "-1002352533677":
+                    logger.info(f"🔍 VERIFY DEBUG: Checking membership for user {user_id} in group {channel}")
                 
                 try:
                     chat_member = await bot.get_chat_member(chat_id=chat_id, user_id=user_id)
-                    logger.info(f"DEBUG (verify): User {user_id} status in {channel}: {chat_member.status}")
+                    
+                    if channel == "-1002352533677":
+                        logger.info(f"🔍 VERIFY DEBUG: User {user_id} status in {channel}: {chat_member.status}")
                     
                     if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
-                        logger.info(f"✅ User {user_id} is a member of {channel}")
+                        if channel == "-1002352533677":
+                            logger.info(f"✅ VERIFY DEBUG: User {user_id} IS a member of {channel}")
                         continue
                     else:
-                        logger.info(f"❌ User {user_id} is not a member of {channel}. Status: {chat_member.status}")
+                        if channel == "-1002352533677":
+                            logger.info(f"❌ VERIFY DEBUG: User {user_id} is NOT a member of {channel}")
                         return False
                         
                 except BadRequest as e:
                     error_msg = str(e).lower()
                     logger.error(f"BadRequest error for channel {channel}: {error_msg}")
+                    
+                    if channel == "-1002352533677":
+                        logger.error(f"🔍 VERIFY DEBUG: Full error: {e}")
                     
                     if "user not found" in error_msg:
                         logger.warning(f"User {user_id} not found in {channel}")
@@ -408,6 +571,8 @@ async def verify_user_membership(user_id: int) -> bool:
                         
             except Exception as e:
                 logger.error(f"Error processing channel {channel}: {e}")
+                if channel == "-1002352533677":
+                    logger.error(f"🔍 VERIFY DEBUG: Exception: {repr(e)}")
                 return False
                 
         logger.info(f"✅ All membership checks passed for user {user_id}")
@@ -512,6 +677,10 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
         
         for channel in support_channels:
             try:
+                # SPECIAL HANDLING FOR PROBLEMATIC GROUP
+                if channel == "-1002352533677":
+                    logger.info(f"🔍 GET_CHANNEL_INFO: Processing special group {channel} for user {user_id}")
+                
                 # Convert to proper chat_id format
                 if channel.startswith('@'):
                     chat_id = channel
@@ -529,12 +698,16 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                     chat_title = chat.title or format_channel_name(channel)
                     chat_username = getattr(chat, 'username', None)
                     
+                    if channel == "-1002352533677":
+                        logger.info(f"🔍 GET_CHANNEL_INFO: Got chat info for {channel}: {chat_title}")
+                        logger.info(f"🔍 GET_CHANNEL_INFO: Chat type: {chat.type}")
+                    
                     # Get channel photo URL (using our proxy)
                     logo_url = await get_channel_photo_url(bot, channel)
                     
                     # Get or create invite link
                     invite_link = None
-                    if chat.invite_link:
+                    if hasattr(chat, 'invite_link') and chat.invite_link:
                         invite_link = chat.invite_link
                     elif chat_username:
                         invite_link = f"https://t.me/{chat_username}"
@@ -543,8 +716,8 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                         try:
                             invite = await bot.create_chat_invite_link(
                                 chat_id=chat_id,
-                                creates_join_request=True,
-                                name="Bot Access Link"
+                                creates_join_request=False,  # Changed for group compatibility
+                                name="Group Access Link"
                             )
                             invite_link = invite.invite_link
                         except Exception as e:
@@ -582,16 +755,29 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                 is_channel_member = False
                 try:
                     chat_member = await bot.get_chat_member(chat_id=chat_id, user_id=user_id)
-                    logger.info(f"DEBUG get_channel_info: User {user_id} status in {channel}: {chat_member.status}")
+                    
+                    if channel == "-1002352533677":
+                        logger.info(f"🔍 GET_CHANNEL_INFO: User {user_id} status in {channel}: {chat_member.status}")
+                        logger.info(f"🔍 GET_CHANNEL_INFO: Status object: {chat_member}")
                     
                     if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
                         is_channel_member = True
-                        logger.info(f"✅ User {user_id} is member of {channel}")
+                        if channel == "-1002352533677":
+                            logger.info(f"✅ GET_CHANNEL_INFO: User {user_id} IS member of {channel}")
+                        else:
+                            logger.info(f"✅ User {user_id} is member of {channel}")
                     else:
-                        logger.info(f"❌ User {user_id} is NOT member of {channel}. Status: {chat_member.status}")
+                        if channel == "-1002352533677":
+                            logger.info(f"❌ GET_CHANNEL_INFO: User {user_id} is NOT member of {channel}. Status: {chat_member.status}")
+                        else:
+                            logger.info(f"❌ User {user_id} is NOT member of {channel}. Status: {chat_member.status}")
                         
                 except BadRequest as e:
                     error_msg = str(e).lower()
+                    if channel == "-1002352533677":
+                        logger.error(f"🔍 GET_CHANNEL_INFO: BadRequest for {channel}: {error_msg}")
+                        logger.error(f"🔍 GET_CHANNEL_INFO: Full error: {e}")
+                    
                     if "user not found" in error_msg:
                         logger.warning(f"User {user_id} not found in {channel}")
                     elif "chat not found" in error_msg:
@@ -606,6 +792,8 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                         logger.error(f"Error checking membership for {channel}: {e}")
                 except Exception as e:
                     logger.error(f"Failed to check membership for {channel}: {e}")
+                    if channel == "-1002352533677":
+                        logger.error(f"🔍 GET_CHANNEL_INFO: Exception details: {repr(e)}")
                 
                 if not is_channel_member:
                     is_member = False
@@ -628,6 +816,8 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                 
             except Exception as e:
                 logger.error(f"Error processing channel {channel}: {e}")
+                if channel == "-1002352533677":
+                    logger.error(f"🔍 GET_CHANNEL_INFO: Error processing special group: {repr(e)}")
                 # Fallback with basic info
                 chat_title = format_channel_name(channel)
                 
@@ -1391,14 +1581,17 @@ async def test_group_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         me = await context.bot.get_me()
         chat_member = await context.bot.get_chat_member(chat_id=group_id, user_id=me.id)
         
+        # Check current user's status
+        current_user_status = await context.bot.get_chat_member(chat_id=group_id, user_id=update.effective_user.id)
+        
         # Try to create invite link
         invite_link = None
         if chat_member.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
             try:
                 invite = await context.bot.create_chat_invite_link(
                     chat_id=group_id,
-                    creates_join_request=True,
-                    name="Bot Access Link",
+                    creates_join_request=False,
+                    name="Test Link",
                     expire_date=None,
                     member_limit=None
                 )
@@ -1408,20 +1601,32 @@ async def test_group_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         else:
             invite_link = "Bot is not an admin, cannot create invite link"
         
+        # Get group member count
+        member_count = "Unknown"
+        try:
+            member_count = chat.get_member_count()
+        except:
+            pass
+        
         await update.message.reply_text(
             f"✅ *Group Test Results*\n\n"
             f"📋 *Group Info:*\n"
             f"• Title: {chat.title}\n"
             f"• Type: {chat.type}\n"
-            f"• ID: {chat.id}\n\n"
+            f"• ID: {chat.id}\n"
+            f"• Members: {member_count}\n\n"
             f"🤖 *Bot Status:*\n"
             f"• Status: {chat_member.status}\n"
             f"• Permissions: {'Admin' if chat_member.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER] else 'Member'}\n\n"
+            f"👤 *Your Status:*\n"
+            f"• Status: {current_user_status.status}\n"
+            f"• Permissions: {'Admin' if current_user_status.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER] else 'Member'}\n\n"
             f"🔗 *Invite Link:*\n"
             f"{invite_link}\n\n"
             f"🔍 *Debug Info:*\n"
             f"• Chat ID Format: Integer ({group_id})\n"
-            f"• Is Supergroup: {'Yes' if chat.type == 'supergroup' else 'No'}",
+            f"• Is Supergroup: {'Yes' if chat.type == 'supergroup' else 'No'}\n"
+            f"• Bot can invite users: {'Yes' if chat_member.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER] else 'No'}",
             parse_mode=ParseMode.MARKDOWN
         )
         
@@ -1432,7 +1637,8 @@ async def test_group_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
             f"Common issues:\n"
             f"1. Bot not in group\n"
             f"2. Bot not admin\n"
-            f"3. Group not a supergroup",
+            f"3. Group not a supergroup\n"
+            f"4. Bot doesn't have 'View Messages' permission",
             parse_mode=ParseMode.MARKDOWN
         )
     except Exception as e:
@@ -1440,6 +1646,66 @@ async def test_group_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
             f"❌ *General Error*\n\n"
             f"Error: {str(e)}\n\n"
             f"Full error: {repr(e)}",
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+async def debug_group_membership(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Debug membership for specific user in specific group."""
+    admin_id = int(os.environ.get("ADMIN_ID", 0))
+    if update.effective_user.id != admin_id:
+        return
+    
+    if not context.args:
+        await update.message.reply_text("Usage: /debug_member USER_ID")
+        return
+    
+    try:
+        user_id = int(context.args[0])
+        group_id = -1002352533677
+        
+        logger.info(f"🔍 DEBUG: Testing membership for user {user_id} in group {group_id}")
+        
+        # Get bot's status
+        me = await context.bot.get_me()
+        bot_member = await context.bot.get_chat_member(chat_id=group_id, user_id=me.id)
+        
+        # Get user's status
+        user_member = await context.bot.get_chat_member(chat_id=group_id, user_id=user_id)
+        
+        # Get chat info
+        chat = await context.bot.get_chat(group_id)
+        
+        await update.message.reply_text(
+            f"🔍 *Debug Membership Test*\n\n"
+            f"👤 User ID: {user_id}\n"
+            f"👥 Group: {chat.title} ({group_id})\n\n"
+            f"🤖 *Bot Status:*\n"
+            f"• Status: {bot_member.status}\n"
+            f"• Is Admin: {bot_member.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER]}\n\n"
+            f"👤 *User Status:*\n"
+            f"• Status: {user_member.status}\n"
+            f"• Is Member: {user_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]}\n\n"
+            f"✅ *Membership Check Result:*\n"
+            f"• User is {'✅ MEMBER' if user_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER] else '❌ NOT MEMBER'}\n"
+            f"• Bot can check: {'✅ YES' if bot_member.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER] else '❌ NO (needs admin)'}",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        
+    except BadRequest as e:
+        error_msg = str(e).lower()
+        await update.message.reply_text(
+            f"❌ *BadRequest Error*\n\n"
+            f"Error: {error_msg}\n\n"
+            f"Likely causes:\n"
+            f"1. Bot not admin in group\n"
+            f"2. User not found in group\n"
+            f"3. Group not accessible",
+            parse_mode=ParseMode.MARKDOWN
+        )
+    except Exception as e:
+        await update.message.reply_text(
+            f"❌ *Error*\n\n"
+            f"{str(e)}",
             parse_mode=ParseMode.MARKDOWN
         )
 
@@ -1460,6 +1726,7 @@ telegram_bot_app.add_handler(CommandHandler("broadcast", broadcast_command))
 telegram_bot_app.add_handler(CommandHandler("stats", stats_command))
 telegram_bot_app.add_handler(CommandHandler("help", help_command))
 telegram_bot_app.add_handler(CommandHandler("testgroup", test_group_command))
+telegram_bot_app.add_handler(CommandHandler("debug_member", debug_group_membership))
 
 telegram_bot_app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, store_message))
 
@@ -1497,8 +1764,43 @@ async def on_startup():
     bot_info = await telegram_bot_app.bot.get_me()
     logger.info(f"Bot: @{bot_info.username}")
     
-    # Test channel link generation and get channel titles
+    # SPECIAL DEBUG: Test the problematic group
     support_channels = get_support_channels()
+    if "-1002352533677" in support_channels:
+        logger.info("🔍 SPECIAL STARTUP DEBUG: Testing access to group -1002352533677")
+        try:
+            group_id = -1002352533677
+            
+            # Test 1: Get chat info
+            chat = await telegram_bot_app.bot.get_chat(group_id)
+            logger.info(f"🔍 Startup: Got chat info - Title: {chat.title}, Type: {chat.type}")
+            
+            # Test 2: Check bot status
+            me = await telegram_bot_app.bot.get_me()
+            bot_member = await telegram_bot_app.bot.get_chat_member(chat_id=group_id, user_id=me.id)
+            logger.info(f"🔍 Startup: Bot status - {bot_member.status}")
+            logger.info(f"🔍 Startup: Bot is admin: {bot_member.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER]}")
+            
+            # Test 3: Try to create invite link
+            if bot_member.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
+                try:
+                    invite = await telegram_bot_app.bot.create_chat_invite_link(
+                        chat_id=group_id,
+                        creates_join_request=False,
+                        name="Startup Test Link"
+                    )
+                    logger.info(f"🔍 Startup: Can create invite link: {invite.invite_link}")
+                except Exception as invite_error:
+                    logger.error(f"🔍 Startup: Failed to create invite link: {invite_error}")
+            else:
+                logger.warning("🔍 Startup: Bot is not admin, cannot create invite links")
+                
+        except Exception as e:
+            logger.error(f"🔍 Startup: Failed to test group access: {e}")
+            import traceback
+            logger.error(f"🔍 Startup: Traceback: {traceback.format_exc()}")
+    
+    # Test channel link generation and get channel titles
     if support_channels:
         logger.info(f"Support channels: {support_channels}")
         for channel in support_channels:

@@ -5,7 +5,7 @@ import base64
 import asyncio
 import datetime
 import io
-import requests  # Added for setting bot commands
+import requests  # Added import
 from typing import Optional, List, Dict, Any
 from pymongo import MongoClient
 from fastapi import FastAPI, Request, Response, HTTPException
@@ -59,6 +59,38 @@ def init_db():
     except Exception as e:
         logger.error(f"❌ MongoDB error: {e}")
         raise
+
+def reset_and_set_commands():
+    """Reset and set premium-style bot commands."""
+    try:
+        bot_token = os.environ.get("TELEGRAM_TOKEN")
+        if not bot_token:
+            logger.error("❌ TELEGRAM_TOKEN not found in environment")
+            return
+        
+        url = f"https://api.telegram.org/bot{bot_token}/setMyCommands"
+        
+        # New premium-style commands
+        commands = [
+            {"command": "start", "description": "🚀 Start the bot"},
+            {"command": "protect", "description": "🔗 Create protected link"},
+            {"command": "revoke", "description": "❌ Revoke active links"},
+            {"command": "broadcast", "description": "📢 Broadcast (Admin)"},
+            {"command": "stats", "description": "📊 Statistics (Admin)"},
+            {"command": "help", "description": "📖 Show help guide"}
+        ]
+        
+        # Set new commands
+        response = requests.post(url, json={"commands": commands})
+        
+        if response.status_code == 200:
+            logger.info("✅ Bot commands updated successfully")
+            logger.info(f"✅ Commands set: {[cmd['command'] for cmd in commands]}")
+        else:
+            logger.error(f"❌ Failed to update commands: {response.text}")
+            
+    except Exception as e:
+        logger.error(f"❌ Error setting bot commands: {e}")
 
 async def get_channel_invite_link(context: ContextTypes.DEFAULT_TYPE, channel_id: str) -> str:
     """Get or create an invite link for a channel."""
@@ -1082,7 +1114,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         f"• 🗄️ Database: 🟢 Operational\n"
         f"• 🤖 Bot: 🟢 Online\n"
         f"• ⚡ Uptime: 100%\n"
-        f"• 🕐 Last Update: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        f"• 🕐 Last Update: {datetime.datetime.now().strftime('%Y-%m-d %H:%M:%S')}",
         parse_mode=ParseMode.MARKDOWN
     )
 
@@ -1153,6 +1185,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "• `/start` - Start the bot\n"
         "• `/protect https://t.me/channel` - Create secure link\n"
         "• `/revoke` - Revoke access\n"
+        "• `/broadcast` - Broadcast message (Admin)\n"
+        "• `/stats` - View statistics (Admin)\n"
         "• `/help` - This message\n\n"
         "🔒 *How to Use:*\n"
         "1. Use `/protect https://t.me/yourchannel`\n"
@@ -1190,40 +1224,6 @@ telegram_bot_app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, stor
 from telegram.ext import CallbackQueryHandler
 telegram_bot_app.add_handler(CallbackQueryHandler(button_callback))
 
-# Function to reset and set bot commands
-def reset_and_set_commands():
-    """Reset old commands and set new premium-style commands."""
-    BOT_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-    if not BOT_TOKEN:
-        logger.error("TELEGRAM_TOKEN not set, cannot set bot commands")
-        return
-    
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/setMyCommands"
-
-    try:
-        # Reset old commands
-        requests.post(url, json={"commands": []})
-        
-        # New premium-style commands
-        commands = [
-            {"command": "start", "description": "🚀 Start the bot"},
-            {"command": "protect", "description": "🔗 Create protected link"},
-            {"command": "revoke", "description": "❌ Revoke a link"},
-            {"command": "help", "description": "❓ Show help menu"},
-            {"command": "stats", "description": "📊 Show stats (Admin only)"},
-            {"command": "broadcast", "description": "📢 Broadcast message (Admin only)"}
-        ]
-        
-        response = requests.post(url, json={"commands": commands})
-        
-        if response.status_code == 200:
-            logger.info("✅ Bot commands updated successfully")
-        else:
-            logger.error(f"❌ Failed to set bot commands: {response.text}")
-            
-    except Exception as e:
-        logger.error(f"❌ Error setting bot commands: {e}")
-
 # --- FastAPI Setup ---
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -1241,11 +1241,11 @@ async def on_startup():
     
     init_db()
     
+    # Set bot commands on startup
+    reset_and_set_commands()
+    
     await telegram_bot_app.initialize()
     await telegram_bot_app.start()
-    
-    # Set bot commands
-    reset_and_set_commands()
     
     webhook_url = f"{os.environ.get('RENDER_EXTERNAL_URL')}/{os.environ.get('TELEGRAM_TOKEN')}"
     await telegram_bot_app.bot.set_webhook(url=webhook_url)

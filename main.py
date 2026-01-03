@@ -92,6 +92,95 @@ def reset_and_set_commands():
     except Exception as e:
         logger.error(f"❌ Error setting bot commands: {e}")
 
+# ======================================================
+# FIX: NEW FUNCTION TO HANDLE RESTRICTED USERS
+# ======================================================
+async def check_membership_with_privacy_fallback(bot, chat_id: Any, user_id: int, group_id: str) -> bool:
+    """
+    Check membership with fallback for users who have restricted their privacy.
+    
+    This handles cases where:
+    1. User has "Hide in groups" enabled
+    2. User has privacy settings that prevent bots from seeing them
+    3. User is actually a member but appears as "not found"
+    """
+    try:
+        # First try standard method
+        try:
+            chat_member = await bot.get_chat_member(chat_id=chat_id, user_id=user_id)
+            
+            if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
+                logger.info(f"✅ Standard check: User {user_id} is a member of {group_id}")
+                return True
+            else:
+                logger.info(f"❌ Standard check: User {user_id} is NOT a member of {group_id}. Status: {chat_member.status}")
+                return False
+                
+        except BadRequest as e:
+            error_msg = str(e).lower()
+            
+            # Special handling for specific error messages
+            if "user not found" in error_msg:
+                logger.warning(f"⚠️ User {user_id} not found in {group_id}. This could be due to privacy settings.")
+                
+                # Try alternative methods for this specific problematic group
+                if group_id == "-1002352533677":
+                    logger.info(f"🔍 Trying alternative methods for group {group_id}...")
+                    
+                    # Method 1: Try to check if user can access the group by other means
+                    # For now, we'll assume they ARE a member if we can't verify
+                    # (This is a security trade-off for usability)
+                    logger.info(f"⚠️ Assuming user {user_id} IS a member of {group_id} (privacy restrictions)")
+                    
+                    # You might want to add additional verification here, such as:
+                    # - Checking if user has interacted with the bot before
+                    # - Asking user to temporarily disable privacy settings
+                    # - Using a different verification method
+                    
+                    # For now, return True to allow users with privacy restrictions
+                    # Set a flag in the database for tracking
+                    users_collection.update_one(
+                        {"user_id": user_id},
+                        {"$set": {
+                            "privacy_restricted": True,
+                            "last_privacy_check": datetime.datetime.now(),
+                            f"assumed_member_{group_id}": True
+                        }},
+                        upsert=True
+                    )
+                    
+                    return True
+                else:
+                    # For other groups, use standard behavior
+                    logger.info(f"❌ User {user_id} not found in {group_id}")
+                    return False
+                    
+            elif "chat not found" in error_msg:
+                logger.warning(f"Chat {group_id} not found. Bot may not have access.")
+                return False
+            elif "user not participant" in error_msg:
+                logger.info(f"User {user_id} is not a participant in {group_id}")
+                return False
+            elif "bot was kicked" in error_msg:
+                logger.warning(f"Bot was kicked from {group_id}. Cannot check membership.")
+                return False
+            elif "bot is not a member" in error_msg:
+                logger.warning(f"Bot is not a member of {group_id}. Cannot check membership.")
+                return False
+            elif "bot is not an administrator" in error_msg:
+                logger.warning(f"Bot is not an administrator in {group_id}. Cannot check membership.")
+                return False
+            elif "not enough rights" in error_msg:
+                logger.warning(f"Bot doesn't have enough rights in {group_id}. Cannot check membership.")
+                return False
+            else:
+                logger.error(f"Unknown BadRequest error for {group_id}: {e}")
+                return False
+                
+    except Exception as e:
+        logger.error(f"❌ Error checking membership for user {user_id} in {group_id}: {e}")
+        return False
+
 async def get_channel_invite_link(context: ContextTypes.DEFAULT_TYPE, channel_id: str) -> str:
     """Get or create an invite link for a channel."""
     try:
@@ -102,10 +191,6 @@ async def get_channel_invite_link(context: ContextTypes.DEFAULT_TYPE, channel_id
             if channel_data.get("created_at") and \
                (datetime.datetime.now() - channel_data["created_at"]).days < 1:
                 return channel_data["invite_link"]
-        
-        # SPECIAL HANDLING FOR TROUBLESOME GROUP
-        if channel_id == "-1002352533677":
-            logger.info(f"⚠️ Special handling for group: {channel_id}")
         
         # Convert channel_id to appropriate format
         if channel_id.startswith('@'):
@@ -120,85 +205,6 @@ async def get_channel_invite_link(context: ContextTypes.DEFAULT_TYPE, channel_id
             except ValueError:
                 chat_id = f"@{channel_id}"
         
-        # SPECIAL HANDLING: For the problematic group, try different approaches
-        if channel_id == "-1002352533677":
-            logger.info(f"Attempting to get chat info for group {chat_id}")
-            try:
-                # First try to get the chat
-                chat = await context.bot.get_chat(chat_id)
-                logger.info(f"Got chat info for {channel_id}: {chat.title}")
-                
-                # Check if bot is admin
-                me = await context.bot.get_me()
-                try:
-                    chat_member = await context.bot.get_chat_member(chat_id=chat_id, user_id=me.id)
-                    logger.info(f"Bot status in {channel_id}: {chat_member.status}")
-                    is_admin = chat_member.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER]
-                    logger.info(f"Bot is admin: {is_admin}")
-                except Exception as admin_error:
-                    logger.error(f"Failed to check bot admin status: {admin_error}")
-                
-                # Try multiple methods to get invite link
-                invite_methods = []
-                
-                # Method 1: Try to create new invite link
-                try:
-                    invite_link = await context.bot.create_chat_invite_link(
-                        chat_id=chat_id,
-                        creates_join_request=False,  # Changed for group compatibility
-                        name="Group Access Link",
-                        expire_date=None,
-                        member_limit=None
-                    )
-                    invite_url = invite_link.invite_link
-                    invite_methods.append(("Created new link", invite_url))
-                except Exception as e1:
-                    logger.warning(f"Method 1 failed: {e1}")
-                
-                # Method 2: Try existing invite link
-                try:
-                    if chat.invite_link:
-                        invite_methods.append(("Existing link", chat.invite_link))
-                except Exception as e2:
-                    logger.warning(f"Method 2 failed: {e2}")
-                
-                # Method 3: Try to get exported invite links
-                try:
-                    # Note: This requires bot to be admin
-                    export_result = await context.bot.export_chat_invite_link(chat_id=chat_id)
-                    invite_methods.append(("Exported link", export_result))
-                except Exception as e3:
-                    logger.warning(f"Method 3 failed: {e3}")
-                
-                # Choose the best method
-                if invite_methods:
-                    method_name, invite_url = invite_methods[0]
-                    logger.info(f"Using {method_name} for {channel_id}: {invite_url}")
-                else:
-                    # Fallback
-                    invite_url = f"https://t.me/c/{str(abs(chat_id))[4:]}"
-                    logger.info(f"Using fallback link: {invite_url}")
-                
-                # Save to database
-                channels_collection.update_one(
-                    {"channel_id": channel_id},
-                    {"$set": {
-                        "invite_link": invite_url,
-                        "created_at": datetime.datetime.now(),
-                        "last_updated": datetime.datetime.now(),
-                        "title": chat.title if hasattr(chat, 'title') else "Unknown Group"
-                    }},
-                    upsert=True
-                )
-                
-                logger.info(f"✅ Created invite link for group {channel_id}")
-                return invite_url
-                
-            except Exception as e:
-                logger.error(f"❌ Special handling failed for {channel_id}: {e}")
-                # Fall through to standard method
-        
-        # Standard method for other groups
         try:
             invite_link = await context.bot.create_chat_invite_link(
                 chat_id=chat_id,
@@ -272,7 +278,7 @@ def get_support_channels() -> List[str]:
 def format_channel_name(channel_id: str) -> str:
     """Format channel ID for display."""
     if channel_id == "-1002352533677":
-        return "Special Group (2352533677)"
+        return "Special Group"
     
     if channel_id.startswith('@'):
         return channel_id[1:].replace('_', ' ').title()
@@ -345,7 +351,7 @@ async def get_channel_invite_links(context: ContextTypes.DEFAULT_TYPE, channels:
     return channel_links
 
 async def check_channel_membership(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    """Check if user is member of ALL support channels."""
+    """Check if user is member of ALL support channels with privacy fallback."""
     support_channels = get_support_channels()
     if not support_channels:
         return True
@@ -367,127 +373,26 @@ async def check_channel_membership(user_id: int, context: ContextTypes.DEFAULT_T
                     # Assume it's a username without @
                     chat_id = f"@{channel}"
             
-            # SPECIAL DEBUGGING FOR PROBLEMATIC GROUP
-            if channel == "-1002352533677":
-                logger.info(f"🔍 SPECIAL DEBUG: Checking membership for user {user_id} in group {channel}")
-                logger.info(f"🔍 Chat ID format: {chat_id} (type: {type(chat_id)})")
-                
-                # First check bot's status in the group
-                try:
-                    me = await context.bot.get_me()
-                    bot_member = await context.bot.get_chat_member(chat_id=chat_id, user_id=me.id)
-                    logger.info(f"🔍 Bot status in group: {bot_member.status}")
-                    logger.info(f"🔍 Bot is admin: {bot_member.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER]}")
-                except Exception as bot_error:
-                    logger.error(f"🔍 Failed to check bot status: {bot_error}")
+            # Use the new function that handles privacy restrictions
+            is_member = await check_membership_with_privacy_fallback(
+                bot=context.bot,
+                chat_id=chat_id,
+                user_id=user_id,
+                group_id=channel
+            )
             
-            # Try to get chat member with error handling
-            try:
-                chat_member = await context.bot.get_chat_member(chat_id=chat_id, user_id=user_id)
-                
-                if channel == "-1002352533677":
-                    logger.info(f"🔍 User {user_id} status in {channel}: {chat_member.status}")
-                    logger.info(f"🔍 Full status info: {chat_member}")
-                
-                # Check if user is a member
-                if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
-                    if channel == "-1002352533677":
-                        logger.info(f"✅ SPECIAL DEBUG: User {user_id} IS a member of {channel}")
-                    else:
-                        logger.info(f"✅ User {user_id} is a member of {channel}")
-                    continue
-                else:
-                    if channel == "-1002352533677":
-                        logger.info(f"❌ SPECIAL DEBUG: User {user_id} is NOT a member of {channel}. Status: {chat_member.status}")
-                    else:
-                        logger.info(f"❌ User {user_id} is not a member of {channel}. Status: {chat_member.status}")
-                    return False
-                    
-            except BadRequest as e:
-                error_msg = str(e).lower()
-                logger.error(f"BadRequest error for channel {channel}: {error_msg}")
-                
-                if channel == "-1002352533677":
-                    logger.error(f"🔍 SPECIAL DEBUG: Full error for group {channel}: {e}")
-                    logger.error(f"🔍 Error type: {type(e)}")
-                
-                if "user not found" in error_msg:
-                    logger.warning(f"User {user_id} not found in {channel}. They might have left or been kicked.")
-                    return False
-                elif "chat not found" in error_msg:
-                    logger.warning(f"Chat {channel} not found. Bot may not have access.")
-                    return False
-                elif "user not participant" in error_msg:
-                    logger.info(f"User {user_id} is not a participant in {channel}")
-                    return False
-                elif "bot was kicked" in error_msg:
-                    logger.warning(f"Bot was kicked from {channel}. Cannot check membership.")
-                    return False
-                elif "bot is not a member" in error_msg:
-                    logger.warning(f"Bot is not a member of {channel}. Cannot check membership.")
-                    return False
-                elif "bot is not an administrator" in error_msg:
-                    logger.warning(f"Bot is not an administrator in {channel}. Cannot check membership.")
-                    return False
-                elif "not enough rights" in error_msg:
-                    logger.warning(f"Bot doesn't have enough rights in {channel}. Cannot check membership.")
-                    return False
-                elif "method is available only for supergroups" in error_msg:
-                    logger.warning(f"Group {channel} is not a supergroup. Cannot check membership.")
-                    # Try alternative method
-                    return await check_group_membership_alternative(user_id, context, channel)
-                else:
-                    logger.error(f"Unknown BadRequest error for {channel}: {e}")
-                    return False
+            if not is_member:
+                logger.info(f"❌ User {user_id} is not a member of {channel} (or privacy restricted)")
+                return False
+            else:
+                logger.info(f"✅ User {user_id} membership check passed for {channel}")
                     
         except Exception as e:
             logger.error(f"❌ Channel check error for {channel}: {e}")
-            if channel == "-1002352533677":
-                logger.error(f"🔍 SPECIAL DEBUG: Exception details: {repr(e)}")
-                import traceback
-                logger.error(f"🔍 Traceback: {traceback.format_exc()}")
             return False
     
     logger.info(f"✅ All membership checks passed for user {user_id}")
     return True
-
-async def check_group_membership_alternative(user_id: int, context: ContextTypes.DEFAULT_TYPE, group_id: str) -> bool:
-    """Alternative method to check group membership."""
-    logger.info(f"Trying alternative membership check for group {group_id}")
-    
-    try:
-        # Convert to proper chat_id
-        if group_id.startswith('-100'):
-            chat_id = int(group_id)
-        else:
-            chat_id = group_id
-        
-        # Method 1: Try to send a message and see if it fails
-        try:
-            # This is just to test if user can receive messages
-            # We'll send a silent message (not really send, just check permissions)
-            await context.bot.get_chat_member(chat_id=chat_id, user_id=user_id)
-            return True
-        except Exception as e:
-            logger.error(f"Alternative method 1 failed: {e}")
-        
-        # Method 2: Try different API approach
-        try:
-            # Get chat and check if it's available
-            chat = await context.bot.get_chat(chat_id)
-            
-            # For basic groups, we might not be able to check membership directly
-            # Return True as a fallback (risky but better than blocking all users)
-            logger.warning(f"⚠️ Cannot reliably check membership for group {group_id}. Assuming user is member.")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Alternative method 2 failed: {e}")
-            return False
-            
-    except Exception as e:
-        logger.error(f"Alternative membership check failed: {e}")
-        return False
 
 async def verify_user_membership(user_id: int) -> bool:
     """Check if user is member of ALL support channels without context."""
@@ -519,60 +424,22 @@ async def verify_user_membership(user_id: int) -> bool:
                     except ValueError:
                         chat_id = f"@{channel}"
                 
-                if channel == "-1002352533677":
-                    logger.info(f"🔍 VERIFY DEBUG: Checking membership for user {user_id} in group {channel}")
+                # Use the new function that handles privacy restrictions
+                is_member = await check_membership_with_privacy_fallback(
+                    bot=bot,
+                    chat_id=chat_id,
+                    user_id=user_id,
+                    group_id=channel
+                )
                 
-                try:
-                    chat_member = await bot.get_chat_member(chat_id=chat_id, user_id=user_id)
-                    
-                    if channel == "-1002352533677":
-                        logger.info(f"🔍 VERIFY DEBUG: User {user_id} status in {channel}: {chat_member.status}")
-                    
-                    if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
-                        if channel == "-1002352533677":
-                            logger.info(f"✅ VERIFY DEBUG: User {user_id} IS a member of {channel}")
-                        continue
-                    else:
-                        if channel == "-1002352533677":
-                            logger.info(f"❌ VERIFY DEBUG: User {user_id} is NOT a member of {channel}")
-                        return False
-                        
-                except BadRequest as e:
-                    error_msg = str(e).lower()
-                    logger.error(f"BadRequest error for channel {channel}: {error_msg}")
-                    
-                    if channel == "-1002352533677":
-                        logger.error(f"🔍 VERIFY DEBUG: Full error: {e}")
-                    
-                    if "user not found" in error_msg:
-                        logger.warning(f"User {user_id} not found in {channel}")
-                        return False
-                    elif "chat not found" in error_msg:
-                        logger.warning(f"Chat {channel} not found.")
-                        return False
-                    elif "user not participant" in error_msg:
-                        logger.info(f"User {user_id} is not a participant in {channel}")
-                        return False
-                    elif "bot was kicked" in error_msg:
-                        logger.warning(f"Bot was kicked from {channel}")
-                        return False
-                    elif "bot is not a member" in error_msg:
-                        logger.warning(f"Bot is not a member of {channel}")
-                        return False
-                    elif "bot is not an administrator" in error_msg:
-                        logger.warning(f"Bot is not an administrator in {channel}")
-                        return False
-                    elif "not enough rights" in error_msg:
-                        logger.warning(f"Bot doesn't have enough rights in {channel}")
-                        return False
-                    else:
-                        logger.error(f"Unknown BadRequest error for {channel}: {e}")
-                        return False
+                if not is_member:
+                    logger.info(f"❌ Verify: User {user_id} is not a member of {channel}")
+                    return False
+                else:
+                    logger.info(f"✅ Verify: User {user_id} membership check passed for {channel}")
                         
             except Exception as e:
                 logger.error(f"Error processing channel {channel}: {e}")
-                if channel == "-1002352533677":
-                    logger.error(f"🔍 VERIFY DEBUG: Exception: {repr(e)}")
                 return False
                 
         logger.info(f"✅ All membership checks passed for user {user_id}")
@@ -677,10 +544,6 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
         
         for channel in support_channels:
             try:
-                # SPECIAL HANDLING FOR PROBLEMATIC GROUP
-                if channel == "-1002352533677":
-                    logger.info(f"🔍 GET_CHANNEL_INFO: Processing special group {channel} for user {user_id}")
-                
                 # Convert to proper chat_id format
                 if channel.startswith('@'):
                     chat_id = channel
@@ -698,10 +561,6 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                     chat_title = chat.title or format_channel_name(channel)
                     chat_username = getattr(chat, 'username', None)
                     
-                    if channel == "-1002352533677":
-                        logger.info(f"🔍 GET_CHANNEL_INFO: Got chat info for {channel}: {chat_title}")
-                        logger.info(f"🔍 GET_CHANNEL_INFO: Chat type: {chat.type}")
-                    
                     # Get channel photo URL (using our proxy)
                     logo_url = await get_channel_photo_url(bot, channel)
                     
@@ -716,8 +575,8 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                         try:
                             invite = await bot.create_chat_invite_link(
                                 chat_id=chat_id,
-                                creates_join_request=False,  # Changed for group compatibility
-                                name="Group Access Link"
+                                creates_join_request=True,
+                                name="Access Link"
                             )
                             invite_link = invite.invite_link
                         except Exception as e:
@@ -751,49 +610,13 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                     else:
                         invite_link = f"https://t.me/{channel}"
                 
-                # Check membership with detailed logging
-                is_channel_member = False
-                try:
-                    chat_member = await bot.get_chat_member(chat_id=chat_id, user_id=user_id)
-                    
-                    if channel == "-1002352533677":
-                        logger.info(f"🔍 GET_CHANNEL_INFO: User {user_id} status in {channel}: {chat_member.status}")
-                        logger.info(f"🔍 GET_CHANNEL_INFO: Status object: {chat_member}")
-                    
-                    if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
-                        is_channel_member = True
-                        if channel == "-1002352533677":
-                            logger.info(f"✅ GET_CHANNEL_INFO: User {user_id} IS member of {channel}")
-                        else:
-                            logger.info(f"✅ User {user_id} is member of {channel}")
-                    else:
-                        if channel == "-1002352533677":
-                            logger.info(f"❌ GET_CHANNEL_INFO: User {user_id} is NOT member of {channel}. Status: {chat_member.status}")
-                        else:
-                            logger.info(f"❌ User {user_id} is NOT member of {channel}. Status: {chat_member.status}")
-                        
-                except BadRequest as e:
-                    error_msg = str(e).lower()
-                    if channel == "-1002352533677":
-                        logger.error(f"🔍 GET_CHANNEL_INFO: BadRequest for {channel}: {error_msg}")
-                        logger.error(f"🔍 GET_CHANNEL_INFO: Full error: {e}")
-                    
-                    if "user not found" in error_msg:
-                        logger.warning(f"User {user_id} not found in {channel}")
-                    elif "chat not found" in error_msg:
-                        logger.warning(f"Chat {channel} not found")
-                    elif "user not participant" in error_msg:
-                        logger.info(f"User {user_id} is not participant in {channel}")
-                    elif "bot was kicked" in error_msg or "bot is not a member" in error_msg:
-                        logger.warning(f"Bot cannot access {channel}")
-                    elif "bot is not an administrator" in error_msg:
-                        logger.warning(f"Bot is not an administrator in {channel}")
-                    else:
-                        logger.error(f"Error checking membership for {channel}: {e}")
-                except Exception as e:
-                    logger.error(f"Failed to check membership for {channel}: {e}")
-                    if channel == "-1002352533677":
-                        logger.error(f"🔍 GET_CHANNEL_INFO: Exception details: {repr(e)}")
+                # Check membership using our new privacy-aware function
+                is_channel_member = await check_membership_with_privacy_fallback(
+                    bot=bot,
+                    chat_id=chat_id,
+                    user_id=user_id,
+                    group_id=channel
+                )
                 
                 if not is_channel_member:
                     is_member = False
@@ -816,8 +639,6 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                 
             except Exception as e:
                 logger.error(f"Error processing channel {channel}: {e}")
-                if channel == "-1002352533677":
-                    logger.error(f"🔍 GET_CHANNEL_INFO: Error processing special group: {repr(e)}")
                 # Fallback with basic info
                 chat_title = format_channel_name(channel)
                 
@@ -864,6 +685,78 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
             "invite_link": fallback_channels[0]["invite_link"] if fallback_channels else None
         }
 
+# ======================================================
+# ADDITIONAL FUNCTION: FORCE MEMBERSHIP VERIFICATION
+# ======================================================
+async def force_verify_membership(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int = None) -> bool:
+    """
+    Force verification of membership for users with privacy restrictions.
+    This can be used as an admin command or alternative verification.
+    """
+    target_user_id = user_id or update.effective_user.id
+    
+    # Check if user has been marked as privacy restricted
+    user_data = users_collection.find_one({"user_id": target_user_id})
+    
+    if user_data and user_data.get("privacy_restricted"):
+        logger.info(f"User {target_user_id} has privacy restrictions. Using alternative verification.")
+        
+        # Method 1: Ask user to provide proof (screenshot, etc.)
+        # Method 2: Use admin manual verification
+        # Method 3: Temporary bypass for trusted users
+        
+        # For now, we'll implement a simple admin verification system
+        admin_id = int(os.environ.get("ADMIN_ID", 0))
+        
+        if update.effective_user.id == admin_id:
+            # Admin can force verify
+            logger.info(f"Admin {admin_id} force-verifying user {target_user_id}")
+            
+            # Mark user as manually verified
+            users_collection.update_one(
+                {"user_id": target_user_id},
+                {"$set": {
+                    "manually_verified": True,
+                    "verified_by": admin_id,
+                    "verified_at": datetime.datetime.now()
+                }},
+                upsert=True
+            )
+            
+            if update.callback_query:
+                await update.callback_query.answer("✅ User manually verified!", show_alert=True)
+            else:
+                await update.message.reply_text("✅ User manually verified!")
+            
+            return True
+        else:
+            # Regular user needs to contact admin
+            logger.info(f"User {target_user_id} needs manual verification")
+            
+            if update.callback_query:
+                await update.callback_query.answer(
+                    "🔒 Privacy restrictions detected!\n\n"
+                    "Please contact the admin for manual verification or "
+                    "temporarily disable 'Hide in groups' in your Telegram settings.",
+                    show_alert=True
+                )
+            else:
+                await update.message.reply_text(
+                    "🔒 *Privacy Restrictions Detected*\n\n"
+                    "Your privacy settings prevent the bot from verifying your group membership.\n\n"
+                    "**Solutions:**\n"
+                    "1. 📱 Temporarily disable 'Hide in groups' in Telegram Settings → Privacy → Groups\n"
+                    "2. 👨‍💼 Contact @admin for manual verification\n"
+                    "3. 🔄 Try again after adjusting your privacy settings\n\n"
+                    "Once fixed, click 'Check Membership' again.",
+                    parse_mode=ParseMode.MARKDOWN
+                )
+            
+            return False
+    else:
+        # Standard verification
+        return await check_channel_membership(target_user_id, context)
+
 # --- Telegram Bot Logic ---
 telegram_bot_app = Application.builder().token(os.environ.get("TELEGRAM_TOKEN")).build()
 
@@ -890,6 +783,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         is_member = await check_channel_membership(user_id, context)
         if not is_member:
+            # Check if user has privacy restrictions
+            user_data = users_collection.find_one({"user_id": user_id})
+            has_privacy_restrictions = user_data and user_data.get("privacy_restricted")
+            
             # Get channel info and invite links
             channel_info = await get_channel_info_for_user(user_id)
             
@@ -917,25 +814,43 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             # Add check button
             keyboard.append([InlineKeyboardButton("✅ Check Membership", callback_data=callback_data)])
             
+            # Add privacy help button if needed
+            if has_privacy_restrictions:
+                keyboard.append([InlineKeyboardButton("🔒 Privacy Help", callback_data="privacy_help")])
+            
             reply_markup = InlineKeyboardMarkup(keyboard)
             
             channel_count = len(support_channels)
-            if context.args:
+            
+            # Custom message for users with privacy restrictions
+            if has_privacy_restrictions:
                 message_text = (
-                    f"🔐 *This is a Protected Link*\n\n"
-                    f"Join our {channel_count} channel(s) first to access this link.\n"
-                    f"Then click 'Check Membership' below."
+                    f"🔐 *Privacy Issue Detected*\n\n"
+                    f"The bot cannot verify your membership in {channel_count} channel(s) "
+                    f"due to your privacy settings.\n\n"
+                    f"**Please:**\n"
+                    f"1. Join the channel(s) above\n"
+                    f"2. Disable 'Hide in groups' in Telegram settings\n"
+                    f"3. Click 'Check Membership' again\n\n"
+                    f"Or click 'Privacy Help' for more information."
                 )
             else:
-                message_text = (
-                    f"🔐 Join our {channel_count} channel(s) first to use this bot.\n"
-                    "Then click 'Check Membership' below."
-                )
+                if context.args:
+                    message_text = (
+                        f"🔐 *This is a Protected Link*\n\n"
+                        f"Join our {channel_count} channel(s) first to access this link.\n"
+                        f"Then click 'Check Membership' below."
+                    )
+                else:
+                    message_text = (
+                        f"🔐 Join our {channel_count} channel(s) first to use this bot.\n"
+                        "Then click 'Check Membership' below."
+                    )
             
             await update.message.reply_text(
                 message_text,
                 reply_markup=reply_markup,
-                parse_mode=ParseMode.MARKDOWN if context.args else None
+                parse_mode=ParseMode.MARKDOWN if context.args or has_privacy_restrictions else None
             )
             return
     
@@ -1024,7 +939,17 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 "Use /help for commands."
             )
         else:
-            await query.answer("❌ Not joined yet. Please join channel(s) first.", show_alert=True)
+            # Check if it's a privacy issue
+            user_data = users_collection.find_one({"user_id": query.from_user.id})
+            if user_data and user_data.get("privacy_restricted"):
+                await query.answer(
+                    "🔒 Privacy restrictions detected!\n\n"
+                    "Please disable 'Hide in groups' in Telegram Settings → Privacy → Groups\n"
+                    "Then try again.",
+                    show_alert=True
+                )
+            else:
+                await query.answer("❌ Not joined yet. Please join channel(s) first.", show_alert=True)
     
     elif query.data.startswith("check_join_"):
         # Handle check join for protected links
@@ -1051,13 +976,40 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             else:
                 await query.message.edit_text("❌ Link expired or revoked")
         else:
-            await query.answer("❌ Not joined yet. Please join channel(s) first.", show_alert=True)
+            # Check if it's a privacy issue
+            user_data = users_collection.find_one({"user_id": query.from_user.id})
+            if user_data and user_data.get("privacy_restricted"):
+                await query.answer(
+                    "🔒 Privacy restrictions detected!\n\n"
+                    "Please disable 'Hide in groups' in Telegram Settings → Privacy → Groups\n"
+                    "Then try again.",
+                    show_alert=True
+                )
+            else:
+                await query.answer("❌ Not joined yet. Please join channel(s) first.", show_alert=True)
     
     elif query.data == "create_link":
         await query.message.reply_text(
             "To create a protected link, use:\n\n"
             "`/protect https://t.me/yourchannel`\n\n"
             "Replace with your actual channel link.",
+            parse_mode=ParseMode.MARKDOWN
+        )
+    
+    elif query.data == "privacy_help":
+        await query.message.edit_text(
+            "🔒 *Privacy Settings Guide*\n\n"
+            "**Issue:** The bot cannot see you in groups due to your privacy settings.\n\n"
+            "**Solution:**\n"
+            "1. Open Telegram Settings\n"
+            "2. Go to Privacy and Security\n"
+            "3. Click on 'Groups'\n"
+            "4. Change from 'Nobody' to 'Everybody' or 'My Contacts'\n"
+            "5. Make sure 'Never allow' is not selected\n\n"
+            "**Alternative:**\n"
+            "• Ask the group admin to add you as an administrator (admins are always visible)\n"
+            "• Contact @admin for manual verification\n\n"
+            "After fixing, click 'Check Membership' again.",
             parse_mode=ParseMode.MARKDOWN
         )
     
@@ -1070,6 +1022,70 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     elif query.data.startswith("revoke_"):
         link_id = query.data.replace("revoke_", "")
         await handle_revoke_link(update, context, link_id)
+
+# ======================================================
+# NEW ADMIN COMMAND: MANUAL VERIFICATION
+# ======================================================
+async def verify_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Admin command to manually verify a user."""
+    admin_id = int(os.environ.get("ADMIN_ID", 0))
+    if update.effective_user.id != admin_id:
+        await update.message.reply_text(
+            "🔒 *Admin Access Required*\n\n"
+            "This command is restricted to administrators only.",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        return
+    
+    if not context.args:
+        await update.message.reply_text(
+            "Usage: `/verify USER_ID`\n\n"
+            "Manually verify a user who has privacy restrictions.",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        return
+    
+    try:
+        user_id = int(context.args[0])
+        
+        # Mark user as manually verified
+        users_collection.update_one(
+            {"user_id": user_id},
+            {"$set": {
+                "manually_verified": True,
+                "verified_by": update.effective_user.id,
+                "verified_at": datetime.datetime.now(),
+                "privacy_restricted": False  # Clear the flag
+            }},
+            upsert=True
+        )
+        
+        await update.message.reply_text(
+            f"✅ *User Verified!*\n\n"
+            f"User ID: `{user_id}`\n"
+            f"Verified by: {update.effective_user.first_name}\n"
+            f"Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            f"The user can now access protected links.",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        
+        # Try to notify the user if possible
+        try:
+            await context.bot.send_message(
+                chat_id=user_id,
+                text="✅ *Manual Verification Complete*\n\n"
+                     "An administrator has manually verified your account.\n"
+                     "You can now access protected links without privacy restrictions.\n\n"
+                     "Thank you for your patience!",
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except Exception as e:
+            logger.warning(f"Could not notify user {user_id}: {e}")
+            
+    except ValueError:
+        await update.message.reply_text("❌ Invalid user ID. Must be a number.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {str(e)}")
 
 async def protect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Create protected link for ANY Telegram link (group or channel)."""
@@ -1446,6 +1462,10 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     for result in total_clicks_result:
         total_clicks = result.get('total_clicks', 0)
     
+    # Get privacy restricted users count
+    privacy_restricted = users_collection.count_documents({"privacy_restricted": True})
+    manually_verified = users_collection.count_documents({"manually_verified": True})
+    
     # Get ad statistics
     total_ad_impressions = ad_impressions_collection.count_documents({})
     today_ads = ad_impressions_collection.count_documents({
@@ -1456,7 +1476,9 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         f"📊 *System Analytics Dashboard*\n\n"
         f"👥 *User Statistics*\n"
         f"• 📈 Total Users: `{total_users}`\n"
-        f"• 🆕 New Today: `{new_users_today}`\n\n"
+        f"• 🆕 New Today: `{new_users_today}`\n"
+        f"• 🔒 Privacy Restricted: `{privacy_restricted}`\n"
+        f"• ✅ Manually Verified: `{manually_verified}`\n\n"
         f"🔗 *Link Statistics*\n"
         f"• 🔢 Total Links: `{total_links}`\n"
         f"• 🟢 Active Links: `{active_links}`\n"
@@ -1560,155 +1582,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         parse_mode=ParseMode.MARKDOWN
     )
 
-async def test_group_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Test bot access to a specific group."""
-    admin_id = int(os.environ.get("ADMIN_ID", 0))
-    if update.effective_user.id != admin_id:
-        await update.message.reply_text(
-            "🔒 *Admin Access Required*\n\n"
-            "This command is restricted to administrators only.",
-            parse_mode=ParseMode.MARKDOWN
-        )
-        return
-    
-    group_id = -1002352533677
-    
-    try:
-        # Get chat info
-        chat = await context.bot.get_chat(group_id)
-        
-        # Get bot's status
-        me = await context.bot.get_me()
-        chat_member = await context.bot.get_chat_member(chat_id=group_id, user_id=me.id)
-        
-        # Check current user's status
-        current_user_status = await context.bot.get_chat_member(chat_id=group_id, user_id=update.effective_user.id)
-        
-        # Try to create invite link
-        invite_link = None
-        if chat_member.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
-            try:
-                invite = await context.bot.create_chat_invite_link(
-                    chat_id=group_id,
-                    creates_join_request=False,
-                    name="Test Link",
-                    expire_date=None,
-                    member_limit=None
-                )
-                invite_link = invite.invite_link
-            except Exception as e:
-                invite_link = f"Error creating link: {e}"
-        else:
-            invite_link = "Bot is not an admin, cannot create invite link"
-        
-        # Get group member count
-        member_count = "Unknown"
-        try:
-            member_count = chat.get_member_count()
-        except:
-            pass
-        
-        await update.message.reply_text(
-            f"✅ *Group Test Results*\n\n"
-            f"📋 *Group Info:*\n"
-            f"• Title: {chat.title}\n"
-            f"• Type: {chat.type}\n"
-            f"• ID: {chat.id}\n"
-            f"• Members: {member_count}\n\n"
-            f"🤖 *Bot Status:*\n"
-            f"• Status: {chat_member.status}\n"
-            f"• Permissions: {'Admin' if chat_member.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER] else 'Member'}\n\n"
-            f"👤 *Your Status:*\n"
-            f"• Status: {current_user_status.status}\n"
-            f"• Permissions: {'Admin' if current_user_status.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER] else 'Member'}\n\n"
-            f"🔗 *Invite Link:*\n"
-            f"{invite_link}\n\n"
-            f"🔍 *Debug Info:*\n"
-            f"• Chat ID Format: Integer ({group_id})\n"
-            f"• Is Supergroup: {'Yes' if chat.type == 'supergroup' else 'No'}\n"
-            f"• Bot can invite users: {'Yes' if chat_member.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER] else 'No'}",
-            parse_mode=ParseMode.MARKDOWN
-        )
-        
-    except BadRequest as e:
-        await update.message.reply_text(
-            f"❌ *BadRequest Error*\n\n"
-            f"Error: {str(e)}\n\n"
-            f"Common issues:\n"
-            f"1. Bot not in group\n"
-            f"2. Bot not admin\n"
-            f"3. Group not a supergroup\n"
-            f"4. Bot doesn't have 'View Messages' permission",
-            parse_mode=ParseMode.MARKDOWN
-        )
-    except Exception as e:
-        await update.message.reply_text(
-            f"❌ *General Error*\n\n"
-            f"Error: {str(e)}\n\n"
-            f"Full error: {repr(e)}",
-            parse_mode=ParseMode.MARKDOWN
-        )
-
-async def debug_group_membership(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Debug membership for specific user in specific group."""
-    admin_id = int(os.environ.get("ADMIN_ID", 0))
-    if update.effective_user.id != admin_id:
-        return
-    
-    if not context.args:
-        await update.message.reply_text("Usage: /debug_member USER_ID")
-        return
-    
-    try:
-        user_id = int(context.args[0])
-        group_id = -1002352533677
-        
-        logger.info(f"🔍 DEBUG: Testing membership for user {user_id} in group {group_id}")
-        
-        # Get bot's status
-        me = await context.bot.get_me()
-        bot_member = await context.bot.get_chat_member(chat_id=group_id, user_id=me.id)
-        
-        # Get user's status
-        user_member = await context.bot.get_chat_member(chat_id=group_id, user_id=user_id)
-        
-        # Get chat info
-        chat = await context.bot.get_chat(group_id)
-        
-        await update.message.reply_text(
-            f"🔍 *Debug Membership Test*\n\n"
-            f"👤 User ID: {user_id}\n"
-            f"👥 Group: {chat.title} ({group_id})\n\n"
-            f"🤖 *Bot Status:*\n"
-            f"• Status: {bot_member.status}\n"
-            f"• Is Admin: {bot_member.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER]}\n\n"
-            f"👤 *User Status:*\n"
-            f"• Status: {user_member.status}\n"
-            f"• Is Member: {user_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]}\n\n"
-            f"✅ *Membership Check Result:*\n"
-            f"• User is {'✅ MEMBER' if user_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER] else '❌ NOT MEMBER'}\n"
-            f"• Bot can check: {'✅ YES' if bot_member.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER] else '❌ NO (needs admin)'}",
-            parse_mode=ParseMode.MARKDOWN
-        )
-        
-    except BadRequest as e:
-        error_msg = str(e).lower()
-        await update.message.reply_text(
-            f"❌ *BadRequest Error*\n\n"
-            f"Error: {error_msg}\n\n"
-            f"Likely causes:\n"
-            f"1. Bot not admin in group\n"
-            f"2. User not found in group\n"
-            f"3. Group not accessible",
-            parse_mode=ParseMode.MARKDOWN
-        )
-    except Exception as e:
-        await update.message.reply_text(
-            f"❌ *Error*\n\n"
-            f"{str(e)}",
-            parse_mode=ParseMode.MARKDOWN
-        )
-
 async def store_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Store user activity."""
     if update.message and update.message.chat.type == "private":
@@ -1718,6 +1591,26 @@ async def store_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             upsert=True
         )
 
+# ======================================================
+# NEW COMMAND: PRIVACY GUIDE
+# ======================================================
+async def privacy_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show privacy settings guide."""
+    await update.message.reply_text(
+        "🔒 *Privacy Settings Guide*\n\n"
+        "**If the bot cannot see you in groups:**\n\n"
+        "1. 📱 Open Telegram Settings\n"
+        "2. 🔐 Go to 'Privacy and Security'\n"
+        "3. 👥 Click on 'Groups'\n"
+        "4. ⚙️ Change from 'Nobody' to 'Everybody' or 'My Contacts'\n"
+        "5. ✅ Make sure 'Never allow' is NOT selected\n\n"
+        "**After changing settings:**\n"
+        "• Use `/start` again\n"
+        "• Click 'Check Membership'\n\n"
+        "**Need help?** Contact @admin",
+        parse_mode=ParseMode.MARKDOWN
+    )
+
 # Register handlers
 telegram_bot_app.add_handler(CommandHandler("start", start))
 telegram_bot_app.add_handler(CommandHandler("protect", protect_command))
@@ -1725,8 +1618,8 @@ telegram_bot_app.add_handler(CommandHandler("revoke", revoke_command))
 telegram_bot_app.add_handler(CommandHandler("broadcast", broadcast_command))
 telegram_bot_app.add_handler(CommandHandler("stats", stats_command))
 telegram_bot_app.add_handler(CommandHandler("help", help_command))
-telegram_bot_app.add_handler(CommandHandler("testgroup", test_group_command))
-telegram_bot_app.add_handler(CommandHandler("debug_member", debug_group_membership))
+telegram_bot_app.add_handler(CommandHandler("privacy", privacy_command))
+telegram_bot_app.add_handler(CommandHandler("verify", verify_user_command))
 
 telegram_bot_app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, store_message))
 
@@ -1764,76 +1657,14 @@ async def on_startup():
     bot_info = await telegram_bot_app.bot.get_me()
     logger.info(f"Bot: @{bot_info.username}")
     
-    # SPECIAL DEBUG: Test the problematic group
+    # Test channel link generation
     support_channels = get_support_channels()
-    if "-1002352533677" in support_channels:
-        logger.info("🔍 SPECIAL STARTUP DEBUG: Testing access to group -1002352533677")
-        try:
-            group_id = -1002352533677
-            
-            # Test 1: Get chat info
-            chat = await telegram_bot_app.bot.get_chat(group_id)
-            logger.info(f"🔍 Startup: Got chat info - Title: {chat.title}, Type: {chat.type}")
-            
-            # Test 2: Check bot status
-            me = await telegram_bot_app.bot.get_me()
-            bot_member = await telegram_bot_app.bot.get_chat_member(chat_id=group_id, user_id=me.id)
-            logger.info(f"🔍 Startup: Bot status - {bot_member.status}")
-            logger.info(f"🔍 Startup: Bot is admin: {bot_member.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER]}")
-            
-            # Test 3: Try to create invite link
-            if bot_member.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
-                try:
-                    invite = await telegram_bot_app.bot.create_chat_invite_link(
-                        chat_id=group_id,
-                        creates_join_request=False,
-                        name="Startup Test Link"
-                    )
-                    logger.info(f"🔍 Startup: Can create invite link: {invite.invite_link}")
-                except Exception as invite_error:
-                    logger.error(f"🔍 Startup: Failed to create invite link: {invite_error}")
-            else:
-                logger.warning("🔍 Startup: Bot is not admin, cannot create invite links")
-                
-        except Exception as e:
-            logger.error(f"🔍 Startup: Failed to test group access: {e}")
-            import traceback
-            logger.error(f"🔍 Startup: Traceback: {traceback.format_exc()}")
-    
-    # Test channel link generation and get channel titles
     if support_channels:
         logger.info(f"Support channels: {support_channels}")
         for channel in support_channels:
             try:
                 invite_link = await get_channel_invite_link(telegram_bot_app, channel)
-                
-                # Try to get channel title
-                try:
-                    if channel.startswith('@'):
-                        chat_id = channel
-                    elif channel.startswith('-100'):
-                        chat_id = int(channel)
-                    else:
-                        try:
-                            chat_id = int(channel)
-                        except ValueError:
-                            chat_id = f"@{channel}"
-                    
-                    chat = await telegram_bot_app.bot.get_chat(chat_id)
-                    logger.info(f"Support channel: {chat.title or channel} - Invite: {invite_link}")
-                    
-                    # Check bot admin status
-                    me = await telegram_bot_app.bot.get_me()
-                    try:
-                        chat_member = await telegram_bot_app.bot.get_chat_member(chat_id=chat_id, user_id=me.id)
-                        logger.info(f"Bot status in {channel}: {chat_member.status}")
-                        if chat_member.status not in [ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
-                            logger.warning(f"⚠️ Bot is NOT an admin in {channel}. This may cause issues.")
-                    except Exception as e:
-                        logger.error(f"Failed to check bot status in {channel}: {e}")
-                        
-                except Exception as e:
-                    logger.info(f"Support channel: {channel} - Invite: {invite_link} - Error getting info: {e}")
+                logger.info(f"Support channel: {channel} - Invite: {invite_link}")
             except Exception as e:
                 logger.error(f"Failed to generate channel link for {channel}: {e}")
 
@@ -1866,12 +1697,17 @@ async def verify_page(request: Request, token: str, user_id: Optional[int] = Non
     if not link_data:
         raise HTTPException(status_code=404, detail="Link not found or expired")
     
+    # Check if user is manually verified
+    user_data = users_collection.find_one({"user_id": user_id})
+    is_manually_verified = user_data and user_data.get("manually_verified", False)
+    
     return templates.TemplateResponse(
         "verify.html", 
         {
             "request": request, 
             "token": token,
-            "user_id": user_id  # Pass user_id to template for tracking
+            "user_id": user_id,
+            "is_manually_verified": is_manually_verified
         }
     )
 
@@ -1921,11 +1757,17 @@ async def check_membership_api(token: str, user_id: int):
     # Get channel membership info WITH CHANNEL TITLES AND LOGOS
     channel_info = await get_channel_info_for_user(user_id)
     
+    # Check if user is manually verified
+    user_data = users_collection.find_one({"user_id": user_id})
+    is_manually_verified = user_data and user_data.get("manually_verified", False)
+    
     return {
-        "is_member": channel_info["is_member"],
+        "is_member": channel_info["is_member"] or is_manually_verified,
         "channels": channel_info["channels"],  # Now includes channel_title and logo_url
         "channel_count": channel_info["channel_count"],
-        "invite_link": channel_info["invite_link"]
+        "invite_link": channel_info["invite_link"],
+        "is_manually_verified": is_manually_verified,
+        "has_privacy_restrictions": user_data and user_data.get("privacy_restricted", False)
     }
 
 @app.get("/channel_photo/{channel_id}")
@@ -1991,7 +1833,12 @@ async def join_page(request: Request, token: str, user_id: int):
     
     # Check membership
     is_member = await verify_user_membership(user_id)
-    if not is_member:
+    
+    # Check if user is manually verified
+    user_data = users_collection.find_one({"user_id": user_id})
+    is_manually_verified = user_data and user_data.get("manually_verified", False)
+    
+    if not is_member and not is_manually_verified:
         # Track failed join attempt (potential ad revenue lost)
         try:
             ad_impressions_collection.insert_one({
@@ -2020,7 +1867,8 @@ async def join_page(request: Request, token: str, user_id: int):
     return templates.TemplateResponse("join.html", {
         "request": request, 
         "token": token,
-        "user_id": user_id  # Pass user_id for tracking
+        "user_id": user_id,  # Pass user_id for tracking
+        "is_manually_verified": is_manually_verified
     })
 
 @app.get("/getgrouplink/{token}")
@@ -2079,16 +1927,20 @@ async def root():
     total_users = users_collection.count_documents({})
     active_links = links_collection.count_documents({"active": True})
     total_ads = ad_impressions_collection.count_documents({})
+    privacy_restricted = users_collection.count_documents({"privacy_restricted": True})
+    manually_verified = users_collection.count_documents({"manually_verified": True})
     
     return {
         "status": "ok",
         "service": "LinkShield Pro",
-        "version": "2.1.0",
+        "version": "2.2.0",
         "time": datetime.datetime.now().isoformat(),
         "database": db_status,
         "stats": {
             "total_users": total_users,
             "active_links": active_links,
-            "total_ad_impressions": total_ads
+            "total_ad_impressions": total_ads,
+            "privacy_restricted_users": privacy_restricted,
+            "manually_verified_users": manually_verified
         }
     }

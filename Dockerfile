@@ -1,33 +1,20 @@
-FROM python:3.11-slim
+# Use an official Python runtime as a parent image
+FROM python:3.9-slim
 
+# Set the working directory in the container
 WORKDIR /app
 
-# Install system dependencies including DNS tools
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    curl \
-    dnsutils \
-    iputils-ping \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# Update CA certificates
-RUN update-ca-certificates
-
+# Copy the requirements file into the container
 COPY requirements.txt .
 
+# Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-RUN mkdir -p templates
+# Copy the rest of the application code into the container
+COPY . .
 
-COPY main.py .
-COPY templates/ templates/
+# Make the start script executable
+RUN chmod +x start.sh
 
-RUN useradd -m -u 1000 botuser && chown -R botuser:botuser /app
-USER botuser
-
-EXPOSE 10000
-
-# Use shell form for environment variable expansion
-CMD uvicorn main:app --host 0.0.0.0 --port $PORT
+# Command to run the application
+CMD ["./start.sh"]

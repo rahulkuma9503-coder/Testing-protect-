@@ -5,7 +5,7 @@ import base64
 import asyncio
 import datetime
 import io
-import requests
+import requests  # Added import
 from typing import Optional, List, Dict, Any
 from pymongo import MongoClient
 from fastapi import FastAPI, Request, Response, HTTPException
@@ -104,18 +104,15 @@ async def get_channel_invite_link(context: ContextTypes.DEFAULT_TYPE, channel_id
                 return channel_data["invite_link"]
         
         # Convert channel_id to appropriate format
-        if channel_id.startswith('@'):
-            chat_id = channel_id
-        elif channel_id.startswith('-100'):
-            # Supergroup - use as negative integer
+        try:
             chat_id = int(channel_id)
-        else:
-            # Try to parse as integer, otherwise assume username
-            try:
-                chat_id = int(channel_id)
-            except ValueError:
+        except ValueError:
+            if channel_id.startswith('@'):
+                chat_id = channel_id
+            else:
                 chat_id = f"@{channel_id}"
         
+        # Try to create a new invite link
         try:
             invite_link = await context.bot.create_chat_invite_link(
                 chat_id=chat_id,
@@ -141,18 +138,14 @@ async def get_channel_invite_link(context: ContextTypes.DEFAULT_TYPE, channel_id
             return invite_url
             
         except BadRequest as e:
-            logger.warning(f"⚠️ Cannot create invite link for {channel_id}: {e}")
+            logger.warning(f"⚠️ Cannot create invite link (admin rights?): {e}")
             # Fallback: Try to get existing invite link
             try:
                 chat = await context.bot.get_chat(chat_id)
                 if chat.invite_link:
                     return chat.invite_link
-                elif hasattr(chat, 'username') and chat.username:
+                elif chat.username:
                     return f"https://t.me/{chat.username}"
-                else:
-                    # For private groups, use the format
-                    if isinstance(chat_id, int) and chat_id < 0:
-                        return f"https://t.me/c/{str(chat_id)[4:]}"
             except Exception as e2:
                 logger.error(f"❌ Failed to get chat info: {e2}")
                 
@@ -165,7 +158,7 @@ async def get_channel_invite_link(context: ContextTypes.DEFAULT_TYPE, channel_id
                 return f"https://t.me/{channel_id}"
                 
     except Exception as e:
-        logger.error(f"❌ Error getting channel invite link for {channel_id}: {e}")
+        logger.error(f"❌ Error getting channel invite link: {e}")
         # Final fallback
         if channel_id.startswith('-100'):
             return f"https://t.me/c/{channel_id[4:]}"
@@ -188,9 +181,6 @@ def get_support_channels() -> List[str]:
 
 def format_channel_name(channel_id: str) -> str:
     """Format channel ID for display."""
-    if channel_id == "-1002352533677":
-        return "Special Group"
-    
     if channel_id.startswith('@'):
         return channel_id[1:].replace('_', ' ').title()
     elif channel_id.startswith('-100'):
@@ -210,16 +200,12 @@ async def get_channel_title(bot, channel_id: str) -> str:
     """Get the actual title/name of a channel."""
     try:
         # Convert channel_id to appropriate format
-        if channel_id.startswith('@'):
-            chat_id = channel_id
-        elif channel_id.startswith('-100'):
-            # Supergroup - use as negative integer
+        try:
             chat_id = int(channel_id)
-        else:
-            # Try to parse as integer, otherwise assume username
-            try:
-                chat_id = int(channel_id)
-            except ValueError:
+        except ValueError:
+            if channel_id.startswith('@'):
+                chat_id = channel_id
+            else:
                 chat_id = f"@{channel_id}"
         
         # Get chat information
@@ -262,7 +248,7 @@ async def get_channel_invite_links(context: ContextTypes.DEFAULT_TYPE, channels:
     return channel_links
 
 async def check_channel_membership(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    """Check if user is member of ALL support channels with special handling for restricted users."""
+    """Check if user is member of ALL support channels (including restricted/muted users)."""
     support_channels = get_support_channels()
     if not support_channels:
         return True
@@ -274,7 +260,7 @@ async def check_channel_membership(user_id: int, context: ContextTypes.DEFAULT_T
                 # Public channel with username
                 chat_id = channel
             elif channel.startswith('-100'):
-                # Private supergroup with ID
+                # Private channel/group with ID
                 chat_id = int(channel)
             else:
                 # Try to handle as username or ID
@@ -284,146 +270,44 @@ async def check_channel_membership(user_id: int, context: ContextTypes.DEFAULT_T
                     # Assume it's a username without @
                     chat_id = f"@{channel}"
             
-            # SPECIAL LOGIC FOR GROUP -1002352533677
-            if channel == "-1002352533677":
-                logger.info(f"🔍 SPECIAL: Checking membership for user {user_id} in group {channel}")
-                
-                try:
-                    # First try normal check
-                    chat_member = await context.bot.get_chat_member(chat_id=chat_id, user_id=user_id)
-                    
-                    # Check if user is a member (including restricted, pending, etc.)
-                    # In groups, users can have these statuses:
-                    # - ChatMember.MEMBER (normal member)
-                    # - ChatMember.ADMINISTRATOR (admin)
-                    # - ChatMember.OWNER (owner)
-                    # - ChatMember.RESTRICTED (restricted member - limited permissions)
-                    # - ChatMember.LEFT (left the group)
-                    # - ChatMember.BANNED (banned from group)
-                    
-                    logger.info(f"🔍 User {user_id} status in {channel}: {chat_member.status}")
-                    
-                    # ALLOW if user is any of these statuses (including RESTRICTED)
-                    if chat_member.status in [
-                        ChatMember.MEMBER, 
-                        ChatMember.ADMINISTRATOR, 
-                        ChatMember.OWNER,
-                        ChatMember.RESTRICTED  # <-- ALLOW RESTRICTED USERS
-                    ]:
-                        logger.info(f"✅ SPECIAL: User {user_id} is ALLOWED in {channel} (status: {chat_member.status})")
-                        continue
-                    else:
-                        # User is LEFT or BANNED
-                        logger.info(f"❌ SPECIAL: User {user_id} is NOT ALLOWED in {channel} (status: {chat_member.status})")
-                        return False
-                        
-                except BadRequest as e:
-                    error_msg = str(e).lower()
-                    logger.error(f"BadRequest error for channel {channel}: {error_msg}")
-                    
-                    # SPECIAL HANDLING FOR "USER NOT FOUND" IN THIS GROUP
-                    if "user not found" in error_msg:
-                        logger.info(f"⚠️ SPECIAL: User {user_id} not found in {channel}")
-                        
-                        # For this specific group, we need to determine if user is:
-                        # 1. Not in group at all (should block)
-                        # 2. In restricted list (should allow)
-                        # 3. Has pending join request (should allow)
-                        
-                        # Since we can't distinguish these cases with Telegram API,
-                        # we'll try alternative methods:
-                        
-                        # Method 1: Check if user can be added to group (test with admin rights)
-                        try:
-                            # Try to get chat info first
-                            chat = await context.bot.get_chat(chat_id)
-                            logger.info(f"🔍 Group exists and bot has access: {chat.title}")
-                            
-                            # Try to see if we can check user in some other way
-                            # For now, we'll ALLOW users who are "not found" in this specific group
-                            # because they might be in restricted list or pending
-                            logger.info(f"⚠️ SPECIAL: Assuming user {user_id} is in group {channel} (restricted/pending)")
-                            
-                            # Track this assumption in database
-                            users_collection.update_one(
-                                {"user_id": user_id},
-                                {"$set": {
-                                    f"assumed_member_{channel}": True,
-                                    f"assumed_reason_{channel}": "user_not_found_but_allowed",
-                                    f"last_check_{channel}": datetime.datetime.now()
-                                }},
-                                upsert=True
-                            )
-                            
-                            # ALLOW the user (assume they're in restricted list or pending)
-                            continue
-                            
-                        except Exception as group_error:
-                            logger.error(f"Failed to check group {channel}: {group_error}")
-                            return False
-                    
-                    elif "chat not found" in error_msg:
-                        logger.warning(f"Chat {channel} not found. Bot may not have access.")
-                        return False
-                    elif "user not participant" in error_msg:
-                        logger.info(f"User {user_id} is not a participant in {channel}")
-                        return False
-                    elif "bot was kicked" in error_msg:
-                        logger.warning(f"Bot was kicked from {channel}. Cannot check membership.")
-                        return False
-                    elif "bot is not a member" in error_msg:
-                        logger.warning(f"Bot is not a member of {channel}. Cannot check membership.")
-                        return False
-                    elif "bot is not an administrator" in error_msg:
-                        logger.warning(f"Bot is not an administrator in {channel}. Cannot check membership.")
-                        return False
-                    elif "not enough rights" in error_msg:
-                        logger.warning(f"Bot doesn't have enough rights in {channel}. Cannot check membership.")
-                        return False
-                    else:
-                        logger.error(f"Unknown BadRequest error for {channel}: {e}")
-                        return False
-                
-                except Exception as e:
-                    logger.error(f"❌ Channel check error for {channel}: {e}")
-                    return False
+            # Debug: Log what we're checking
+            logger.info(f"DEBUG: Checking membership for user {user_id} in channel {channel} (chat_id: {chat_id})")
             
-            # STANDARD LOGIC FOR OTHER GROUPS/CHANNELS
-            else:
-                try:
-                    chat_member = await context.bot.get_chat_member(chat_id=chat_id, user_id=user_id)
-                    logger.info(f"DEBUG: User {user_id} status in {channel}: {chat_member.status}")
+            # Try to get chat member with error handling
+            try:
+                chat_member = await context.bot.get_chat_member(chat_id=chat_id, user_id=user_id)
+                logger.info(f"DEBUG: User {user_id} status in {channel}: {chat_member.status}")
+                
+                # Check if user is a member (INCLUDING RESTRICTED/MUTED USERS)
+                if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER, ChatMember.RESTRICTED]:
+                    logger.info(f"✅ User {user_id} is a member of {channel} (status: {chat_member.status})")
+                    continue
+                else:
+                    logger.info(f"❌ User {user_id} is not a member of {channel}. Status: {chat_member.status}")
+                    return False
                     
-                    # Standard check for other groups
-                    if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
-                        logger.info(f"✅ User {user_id} is a member of {channel}")
-                        continue
-                    else:
-                        logger.info(f"❌ User {user_id} is not a member of {channel}. Status: {chat_member.status}")
-                        return False
-                        
-                except BadRequest as e:
-                    error_msg = str(e).lower()
-                    logger.error(f"BadRequest error for channel {channel}: {error_msg}")
-                    
-                    if "user not found" in error_msg:
-                        logger.warning(f"User {user_id} not found in {channel}.")
-                        return False
-                    elif "chat not found" in error_msg:
-                        logger.warning(f"Chat {channel} not found. Bot may not have access.")
-                        return False
-                    elif "user not participant" in error_msg:
-                        logger.info(f"User {user_id} is not a participant in {channel}")
-                        return False
-                    elif "bot was kicked" in error_msg:
-                        logger.warning(f"Bot was kicked from {channel}. Cannot check membership.")
-                        return False
-                    elif "bot is not a member" in error_msg:
-                        logger.warning(f"Bot is not a member of {channel}. Cannot check membership.")
-                        return False
-                    else:
-                        logger.error(f"Unknown BadRequest error for {channel}: {e}")
-                        return False
+            except BadRequest as e:
+                error_msg = str(e).lower()
+                logger.error(f"BadRequest error for channel {channel}: {error_msg}")
+                
+                if "user not found" in error_msg:
+                    logger.warning(f"User {user_id} not found in {channel}. They might have left or been kicked.")
+                    return False
+                elif "chat not found" in error_msg:
+                    logger.warning(f"Chat {channel} not found. Bot may not have access.")
+                    return False
+                elif "user not participant" in error_msg:
+                    logger.info(f"User {user_id} is not a participant in {channel}")
+                    return False
+                elif "bot was kicked" in error_msg:
+                    logger.warning(f"Bot was kicked from {channel}. Cannot check membership.")
+                    return False
+                elif "bot is not a member" in error_msg:
+                    logger.warning(f"Bot is not a member of {channel}. Cannot check membership.")
+                    return False
+                else:
+                    logger.error(f"Unknown BadRequest error for {channel}: {e}")
+                    return False
                     
         except Exception as e:
             logger.error(f"❌ Channel check error for {channel}: {e}")
@@ -433,7 +317,7 @@ async def check_channel_membership(user_id: int, context: ContextTypes.DEFAULT_T
     return True
 
 async def verify_user_membership(user_id: int) -> bool:
-    """Check if user is member of ALL support channels without context."""
+    """Check if user is member of ALL support channels without context (including restricted/muted users)."""
     from telegram import Bot
     
     support_channels = get_support_channels()
@@ -462,87 +346,42 @@ async def verify_user_membership(user_id: int) -> bool:
                     except ValueError:
                         chat_id = f"@{channel}"
                 
-                # SPECIAL LOGIC FOR GROUP -1002352533677
-                if channel == "-1002352533677":
-                    logger.info(f"🔍 VERIFY SPECIAL: Checking membership for user {user_id} in group {channel}")
-                    
-                    try:
-                        chat_member = await bot.get_chat_member(chat_id=chat_id, user_id=user_id)
-                        
-                        # ALLOW if user is any of these statuses (including RESTRICTED)
-                        if chat_member.status in [
-                            ChatMember.MEMBER, 
-                            ChatMember.ADMINISTRATOR, 
-                            ChatMember.OWNER,
-                            ChatMember.RESTRICTED  # <-- ALLOW RESTRICTED USERS
-                        ]:
-                            logger.info(f"✅ VERIFY SPECIAL: User {user_id} is ALLOWED in {channel} (status: {chat_member.status})")
-                            continue
-                        else:
-                            logger.info(f"❌ VERIFY SPECIAL: User {user_id} is NOT ALLOWED in {channel} (status: {chat_member.status})")
-                            return False
-                            
-                    except BadRequest as e:
-                        error_msg = str(e).lower()
-                        
-                        # SPECIAL HANDLING FOR "USER NOT FOUND" IN THIS GROUP
-                        if "user not found" in error_msg:
-                            logger.info(f"⚠️ VERIFY SPECIAL: User {user_id} not found in {channel}")
-                            
-                            # For this specific group, ALLOW users who are "not found"
-                            # because they might be in restricted list or pending
-                            logger.info(f"⚠️ VERIFY SPECIAL: Assuming user {user_id} is in group {channel} (restricted/pending)")
-                            
-                            # Track this assumption in database
-                            users_collection.update_one(
-                                {"user_id": user_id},
-                                {"$set": {
-                                    f"assumed_member_{channel}": True,
-                                    f"assumed_reason_{channel}": "user_not_found_but_allowed",
-                                    f"last_check_{channel}": datetime.datetime.now()
-                                }},
-                                upsert=True
-                            )
-                            
-                            # ALLOW the user
-                            continue
-                        else:
-                            logger.error(f"BadRequest error for channel {channel}: {error_msg}")
-                            return False
+                logger.info(f"DEBUG (verify): Checking membership for user {user_id} in channel {channel}")
                 
-                # STANDARD LOGIC FOR OTHER GROUPS/CHANNELS
-                else:
-                    try:
-                        chat_member = await bot.get_chat_member(chat_id=chat_id, user_id=user_id)
+                try:
+                    chat_member = await bot.get_chat_member(chat_id=chat_id, user_id=user_id)
+                    logger.info(f"DEBUG (verify): User {user_id} status in {channel}: {chat_member.status}")
+                    
+                    # Check if user is a member (INCLUDING RESTRICTED/MUTED USERS)
+                    if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER, ChatMember.RESTRICTED]:
+                        logger.info(f"✅ User {user_id} is a member of {channel} (status: {chat_member.status})")
+                        continue
+                    else:
+                        logger.info(f"❌ User {user_id} is not a member of {channel}. Status: {chat_member.status}")
+                        return False
                         
-                        if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
-                            logger.info(f"✅ Verify: User {user_id} is a member of {channel}")
-                            continue
-                        else:
-                            logger.info(f"❌ Verify: User {user_id} is not a member of {channel}. Status: {chat_member.status}")
-                            return False
-                            
-                    except BadRequest as e:
-                        error_msg = str(e).lower()
-                        
-                        if "user not found" in error_msg:
-                            logger.warning(f"User {user_id} not found in {channel}")
-                            return False
-                        elif "chat not found" in error_msg:
-                            logger.warning(f"Chat {channel} not found.")
-                            return False
-                        elif "user not participant" in error_msg:
-                            logger.info(f"User {user_id} is not a participant in {channel}")
-                            return False
-                        elif "bot was kicked" in error_msg:
-                            logger.warning(f"Bot was kicked from {channel}")
-                            return False
-                        elif "bot is not a member" in error_msg:
-                            logger.warning(f"Bot is not a member of {channel}")
-                            return False
-                        else:
-                            logger.error(f"Unknown BadRequest error for {channel}: {e}")
-                            return False
+                except BadRequest as e:
+                    error_msg = str(e).lower()
+                    logger.error(f"BadRequest error for channel {channel}: {error_msg}")
+                    
+                    if "user not found" in error_msg:
+                        logger.warning(f"User {user_id} not found in {channel}")
+                        return False
+                    elif "chat not found" in error_msg:
+                        logger.warning(f"Chat {channel} not found.")
+                        return False
+                    elif "user not participant" in error_msg:
+                        logger.info(f"User {user_id} is not a participant in {channel}")
+                        return False
+                    elif "bot was kicked" in error_msg:
+                        logger.warning(f"Bot was kicked from {channel}")
+                        return False
+                    elif "bot is not a member" in error_msg:
+                        logger.warning(f"Bot is not a member of {channel}")
+                        return False
+                    else:
+                        logger.error(f"Unknown BadRequest error for {channel}: {e}")
+                        return False
                         
             except Exception as e:
                 logger.error(f"Error processing channel {channel}: {e}")
@@ -558,19 +397,6 @@ async def is_bot_admin(bot, chat_id: str) -> bool:
     """Check if bot is admin in the chat."""
     try:
         me = await bot.get_me()
-        
-        # Convert chat_id if needed
-        if isinstance(chat_id, str):
-            if chat_id.startswith('-100'):
-                chat_id = int(chat_id)
-            elif chat_id.startswith('@'):
-                pass  # Keep as string
-            else:
-                try:
-                    chat_id = int(chat_id)
-                except ValueError:
-                    chat_id = f"@{chat_id}"
-        
         chat_member = await bot.get_chat_member(chat_id=chat_id, user_id=me.id)
         is_admin = chat_member.status in [ChatMember.ADMINISTRATOR, ChatMember.OWNER]
         logger.info(f"Bot admin status in {chat_id}: {is_admin}")
@@ -589,14 +415,12 @@ async def get_channel_photo_url(bot, channel_id: str) -> Optional[str]:
             return f"{os.environ.get('RENDER_EXTERNAL_URL')}/channel_photo/{channel_id}"
         
         # Convert channel_id to appropriate format
-        if channel_id.startswith('@'):
-            chat_id = channel_id
-        elif channel_id.startswith('-100'):
+        try:
             chat_id = int(channel_id)
-        else:
-            try:
-                chat_id = int(channel_id)
-            except ValueError:
+        except ValueError:
+            if channel_id.startswith('@'):
+                chat_id = channel_id
+            else:
                 chat_id = f"@{channel_id}"
         
         # Get chat information
@@ -650,15 +474,12 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
         
         for channel in support_channels:
             try:
-                # Convert to proper chat_id format
-                if channel.startswith('@'):
-                    chat_id = channel
-                elif channel.startswith('-100'):
+                try:
                     chat_id = int(channel)
-                else:
-                    try:
-                        chat_id = int(channel)
-                    except ValueError:
+                except ValueError:
+                    if channel.startswith('@'):
+                        chat_id = channel
+                    else:
                         chat_id = f"@{channel}"
                 
                 # Get chat info and title
@@ -672,7 +493,7 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                     
                     # Get or create invite link
                     invite_link = None
-                    if hasattr(chat, 'invite_link') and chat.invite_link:
+                    if chat.invite_link:
                         invite_link = chat.invite_link
                     elif chat_username:
                         invite_link = f"https://t.me/{chat_username}"
@@ -682,11 +503,10 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                             invite = await bot.create_chat_invite_link(
                                 chat_id=chat_id,
                                 creates_join_request=True,
-                                name="Access Link"
+                                name="Bot Access Link"
                             )
                             invite_link = invite.invite_link
-                        except Exception as e:
-                            logger.error(f"Failed to create invite link for {channel}: {e}")
+                        except:
                             if channel.startswith('-100'):
                                 invite_link = f"https://t.me/c/{channel[4:]}"
                             elif channel.startswith('@'):
@@ -716,59 +536,33 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                     else:
                         invite_link = f"https://t.me/{channel}"
                 
-                # SPECIAL LOGIC FOR GROUP -1002352533677
-                if channel == "-1002352533677":
-                    try:
-                        chat_member = await bot.get_chat_member(chat_id=chat_id, user_id=user_id)
+                # Check membership with detailed logging
+                is_channel_member = False
+                try:
+                    chat_member = await bot.get_chat_member(chat_id=chat_id, user_id=user_id)
+                    logger.info(f"DEBUG get_channel_info: User {user_id} status in {channel}: {chat_member.status}")
+                    
+                    # Check if user is a member (INCLUDING RESTRICTED/MUTED USERS)
+                    if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER, ChatMember.RESTRICTED]:
+                        is_channel_member = True
+                        logger.info(f"✅ User {user_id} is member of {channel} (status: {chat_member.status})")
+                    else:
+                        logger.info(f"❌ User {user_id} is NOT member of {channel}. Status: {chat_member.status}")
                         
-                        # Check membership with special rules for this group
-                        is_channel_member = chat_member.status in [
-                            ChatMember.MEMBER, 
-                            ChatMember.ADMINISTRATOR, 
-                            ChatMember.OWNER,
-                            ChatMember.RESTRICTED  # <-- ALLOW RESTRICTED USERS
-                        ]
-                        
-                        logger.info(f"🔍 Channel info: User {user_id} status in {channel}: {chat_member.status} -> Allowed: {is_channel_member}")
-                        
-                    except BadRequest as e:
-                        error_msg = str(e).lower()
-                        
-                        # SPECIAL HANDLING: If user not found, assume they're in restricted list or pending
-                        if "user not found" in error_msg:
-                            logger.info(f"⚠️ Channel info: User {user_id} not found in {channel}, assuming allowed (restricted/pending)")
-                            is_channel_member = True  # <-- ALLOW users who are "not found"
-                        else:
-                            logger.error(f"Error checking membership for {channel}: {e}")
-                            is_channel_member = False
-                
-                # STANDARD LOGIC FOR OTHER GROUPS
-                else:
-                    # Check membership
-                    is_channel_member = False
-                    try:
-                        chat_member = await bot.get_chat_member(chat_id=chat_id, user_id=user_id)
-                        
-                        if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
-                            is_channel_member = True
-                            logger.info(f"✅ Channel info: User {user_id} is member of {channel}")
-                        else:
-                            logger.info(f"❌ Channel info: User {user_id} is NOT member of {channel}. Status: {chat_member.status}")
-                            
-                    except BadRequest as e:
-                        error_msg = str(e).lower()
-                        if "user not found" in error_msg:
-                            logger.warning(f"User {user_id} not found in {channel}")
-                        elif "chat not found" in error_msg:
-                            logger.warning(f"Chat {channel} not found")
-                        elif "user not participant" in error_msg:
-                            logger.info(f"User {user_id} is not participant in {channel}")
-                        elif "bot was kicked" in error_msg or "bot is not a member" in error_msg:
-                            logger.warning(f"Bot cannot access {channel}")
-                        else:
-                            logger.error(f"Error checking membership for {channel}: {e}")
-                    except Exception as e:
-                        logger.error(f"Failed to check membership for {channel}: {e}")
+                except BadRequest as e:
+                    error_msg = str(e).lower()
+                    if "user not found" in error_msg:
+                        logger.warning(f"User {user_id} not found in {channel}")
+                    elif "chat not found" in error_msg:
+                        logger.warning(f"Chat {channel} not found")
+                    elif "user not participant" in error_msg:
+                        logger.info(f"User {user_id} is not participant in {channel}")
+                    elif "bot was kicked" in error_msg or "bot is not a member" in error_msg:
+                        logger.warning(f"Bot cannot access {channel}")
+                    else:
+                        logger.error(f"Error checking membership for {channel}: {e}")
+                except Exception as e:
+                    logger.error(f"Failed to check membership for {channel}: {e}")
                 
                 if not is_channel_member:
                     is_member = False
@@ -1585,14 +1379,24 @@ async def on_startup():
     bot_info = await telegram_bot_app.bot.get_me()
     logger.info(f"Bot: @{bot_info.username}")
     
-    # Test channel link generation
+    # Test channel link generation and get channel titles
     support_channels = get_support_channels()
     if support_channels:
         logger.info(f"Support channels: {support_channels}")
         for channel in support_channels:
             try:
                 invite_link = await get_channel_invite_link(telegram_bot_app, channel)
-                logger.info(f"Support channel: {channel} - Invite: {invite_link}")
+                # Try to get channel title
+                try:
+                    if channel.startswith('@'):
+                        chat_id = channel
+                    else:
+                        chat_id = int(channel)
+                    
+                    chat = await telegram_bot_app.bot.get_chat(chat_id)
+                    logger.info(f"Support channel: {chat.title or channel} - Invite: {invite_link}")
+                except:
+                    logger.info(f"Support channel: {channel} - Invite: {invite_link}")
             except Exception as e:
                 logger.error(f"Failed to generate channel link for {channel}: {e}")
 
@@ -1630,7 +1434,7 @@ async def verify_page(request: Request, token: str, user_id: Optional[int] = Non
         {
             "request": request, 
             "token": token,
-            "user_id": user_id
+            "user_id": user_id  # Pass user_id to template for tracking
         }
     )
 
@@ -1779,7 +1583,7 @@ async def join_page(request: Request, token: str, user_id: int):
     return templates.TemplateResponse("join.html", {
         "request": request, 
         "token": token,
-        "user_id": user_id
+        "user_id": user_id  # Pass user_id for tracking
     })
 
 @app.get("/getgrouplink/{token}")

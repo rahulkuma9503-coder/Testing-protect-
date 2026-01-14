@@ -41,6 +41,9 @@ channels_collection = db["channels"]
 # Add ad tracking collection
 ad_impressions_collection = db["ad_impressions"]
 
+# Add collection to track joined channels per user
+user_joined_channels = db["user_joined_channels"]
+
 def init_db():
     """Verifies the MongoDB connection."""
     try:
@@ -55,6 +58,9 @@ def init_db():
         # Add index for ad impressions
         ad_impressions_collection.create_index([("user_id", 1), ("timestamp", -1)])
         ad_impressions_collection.create_index("ad_type")
+        # Add index for user joined channels
+        user_joined_channels.create_index([("user_id", 1), ("channel_id", 1)], unique=True)
+        user_joined_channels.create_index("joined_at")
         logger.info("✅ Database indexes created")
     except Exception as e:
         logger.error(f"❌ MongoDB error: {e}")
@@ -280,6 +286,15 @@ async def check_channel_membership(user_id: int, context: ContextTypes.DEFAULT_T
                 
                 # Check if user is a member
                 if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
+                    # Track that user has joined this channel
+                    user_joined_channels.update_one(
+                        {"user_id": user_id, "channel_id": channel},
+                        {"$set": {
+                            "joined_at": datetime.datetime.now(),
+                            "last_verified": datetime.datetime.now()
+                        }},
+                        upsert=True
+                    )
                     logger.info(f"✅ User {user_id} is a member of {channel}")
                     continue
                 else:
@@ -353,6 +368,15 @@ async def verify_user_membership(user_id: int) -> bool:
                     logger.info(f"DEBUG (verify): User {user_id} status in {channel}: {chat_member.status}")
                     
                     if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
+                        # Track that user has joined this channel
+                        user_joined_channels.update_one(
+                            {"user_id": user_id, "channel_id": channel},
+                            {"$set": {
+                                "joined_at": datetime.datetime.now(),
+                                "last_verified": datetime.datetime.now()
+                            }},
+                            upsert=True
+                        )
                         logger.info(f"✅ User {user_id} is a member of {channel}")
                         continue
                     else:
@@ -471,6 +495,10 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
         channels_info = []
         is_member = True
         
+        # Get channels user has already joined from database
+        joined_channels = list(user_joined_channels.find({"user_id": user_id}))
+        joined_channel_ids = {jc["channel_id"] for jc in joined_channels}
+        
         for channel in support_channels:
             try:
                 try:
@@ -535,32 +563,46 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                     else:
                         invite_link = f"https://t.me/{channel}"
                 
-                # Check membership with detailed logging
-                is_channel_member = False
-                try:
-                    chat_member = await bot.get_chat_member(chat_id=chat_id, user_id=user_id)
-                    logger.info(f"DEBUG get_channel_info: User {user_id} status in {channel}: {chat_member.status}")
-                    
-                    if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
-                        is_channel_member = True
-                        logger.info(f"✅ User {user_id} is member of {channel}")
-                    else:
-                        logger.info(f"❌ User {user_id} is NOT member of {channel}. Status: {chat_member.status}")
+                # Check if user has already joined this channel (from database)
+                if channel in joined_channel_ids:
+                    is_channel_member = True
+                    logger.info(f"✅ User {user_id} has already joined {channel} (from database)")
+                else:
+                    # Check membership with detailed logging
+                    is_channel_member = False
+                    try:
+                        chat_member = await bot.get_chat_member(chat_id=chat_id, user_id=user_id)
+                        logger.info(f"DEBUG get_channel_info: User {user_id} status in {channel}: {chat_member.status}")
                         
-                except BadRequest as e:
-                    error_msg = str(e).lower()
-                    if "user not found" in error_msg:
-                        logger.warning(f"User {user_id} not found in {channel}")
-                    elif "chat not found" in error_msg:
-                        logger.warning(f"Chat {channel} not found")
-                    elif "user not participant" in error_msg:
-                        logger.info(f"User {user_id} is not participant in {channel}")
-                    elif "bot was kicked" in error_msg or "bot is not a member" in error_msg:
-                        logger.warning(f"Bot cannot access {channel}")
-                    else:
-                        logger.error(f"Error checking membership for {channel}: {e}")
-                except Exception as e:
-                    logger.error(f"Failed to check membership for {channel}: {e}")
+                        if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
+                            is_channel_member = True
+                            # Track that user has joined this channel
+                            user_joined_channels.update_one(
+                                {"user_id": user_id, "channel_id": channel},
+                                {"$set": {
+                                    "joined_at": datetime.datetime.now(),
+                                    "last_verified": datetime.datetime.now()
+                                }},
+                                upsert=True
+                            )
+                            logger.info(f"✅ User {user_id} is member of {channel}")
+                        else:
+                            logger.info(f"❌ User {user_id} is NOT member of {channel}. Status: {chat_member.status}")
+                            
+                    except BadRequest as e:
+                        error_msg = str(e).lower()
+                        if "user not found" in error_msg:
+                            logger.warning(f"User {user_id} not found in {channel}")
+                        elif "chat not found" in error_msg:
+                            logger.warning(f"Chat {channel} not found")
+                        elif "user not participant" in error_msg:
+                            logger.info(f"User {user_id} is not participant in {channel}")
+                        elif "bot was kicked" in error_msg or "bot is not a member" in error_msg:
+                            logger.warning(f"Bot cannot access {channel}")
+                        else:
+                            logger.error(f"Error checking membership for {channel}: {e}")
+                    except Exception as e:
+                        logger.error(f"Failed to check membership for {channel}: {e}")
                 
                 if not is_channel_member:
                     is_member = False
@@ -571,39 +613,45 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                     if channel_data and channel_data.get("photo_id"):
                         logo_url = f"{os.environ.get('RENDER_EXTERNAL_URL')}/channel_photo/{channel}"
                 
-                channels_info.append({
-                    "channel": channel,
-                    "channel_title": chat_title,
-                    "invite_link": invite_link,
-                    "is_member": is_channel_member,
-                    "display_name": chat_title,
-                    "username": chat_username if 'chat_username' in locals() else None,
-                    "logo_url": logo_url
-                })
+                # Only include channels that user hasn't joined
+                if not is_channel_member:
+                    channels_info.append({
+                        "channel": channel,
+                        "channel_title": chat_title,
+                        "invite_link": invite_link,
+                        "is_member": is_channel_member,
+                        "display_name": chat_title,
+                        "username": chat_username if 'chat_username' in locals() else None,
+                        "logo_url": logo_url
+                    })
                 
             except Exception as e:
                 logger.error(f"Error processing channel {channel}: {e}")
                 # Fallback with basic info
                 chat_title = format_channel_name(channel)
                 
-                channels_info.append({
-                    "channel": channel,
-                    "channel_title": chat_title,
-                    "invite_link": f"https://t.me/{channel[1:]}" if channel.startswith('@') else f"https://t.me/c/{channel[4:]}" if channel.startswith('-100') else f"https://t.me/{channel}",
-                    "is_member": False,
-                    "display_name": chat_title,
-                    "logo_url": None
-                })
-                is_member = False
+                # Only include if user hasn't joined (we don't know for sure, so include)
+                if channel not in joined_channel_ids:
+                    channels_info.append({
+                        "channel": channel,
+                        "channel_title": chat_title,
+                        "invite_link": f"https://t.me/{channel[1:]}" if channel.startswith('@') else f"https://t.me/c/{channel[4:]}" if channel.startswith('-100') else f"https://t.me/{channel}",
+                        "is_member": False,
+                        "display_name": chat_title,
+                        "logo_url": None
+                    })
+                    is_member = False
         
-        # Get the first channel's invite link as the primary one
+        # Get the first channel's invite link as the primary one (from remaining unjoined channels)
         primary_invite_link = channels_info[0]["invite_link"] if channels_info else None
         
         return {
             "is_member": is_member,
-            "channels": channels_info,
+            "channels": channels_info,  # Now only includes channels user hasn't joined
             "channel_count": len(support_channels),
-            "invite_link": primary_invite_link
+            "invite_link": primary_invite_link,
+            "joined_count": len(joined_channel_ids),
+            "total_channels": len(support_channels)
         }
         
     except Exception as e:
@@ -626,7 +674,9 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
             "is_member": False,
             "channels": fallback_channels,
             "channel_count": len(support_channels),
-            "invite_link": fallback_channels[0]["invite_link"] if fallback_channels else None
+            "invite_link": fallback_channels[0]["invite_link"] if fallback_channels else None,
+            "joined_count": 0,
+            "total_channels": len(support_channels)
         }
 
 # --- Telegram Bot Logic ---
@@ -655,7 +705,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         is_member = await check_channel_membership(user_id, context)
         if not is_member:
-            # Get channel info and invite links
+            # Get channel info and invite links (now only shows unjoined channels)
             channel_info = await get_channel_info_for_user(user_id)
             
             # If there's a protected link argument, include it in callback data
@@ -665,7 +715,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             else:
                 callback_data = "check_join"
             
-            # Create keyboard with separate buttons for each channel
+            # Create keyboard with separate buttons for each unjoined channel
             keyboard = []
             
             # Add individual channel buttons (split into rows of 2 for better layout)
@@ -682,20 +732,29 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             # Add check button
             keyboard.append([InlineKeyboardButton("✅ Check Membership", callback_data=callback_data)])
             
+            # Add tutorial button
+            keyboard.append([InlineKeyboardButton("🎥 Watch Tutorial", url="https://t.me/team_secret_tutorial_video/5")])
+            
             reply_markup = InlineKeyboardMarkup(keyboard)
             
             channel_count = len(support_channels)
+            joined_count = channel_info.get("joined_count", 0)
+            
             if context.args:
                 message_text = (
                     f"🔐 *This is a Protected Link*\n\n"
-                    f"Join our {channel_count} channel(s) first to access this link.\n"
-                    f"Then click 'Check Membership' below."
                 )
             else:
                 message_text = (
-                    f"🔐 Join our {channel_count} channel(s) first to use this bot.\n"
-                    "Then click 'Check Membership' below."
+                    f"🔐 *Welcome to LinkShield Pro*\n\n"
                 )
+            
+            message_text += (
+                f"📊 *Progress:* {joined_count}/{channel_count} channels joined\n\n"
+                f"Join the remaining channel(s) first to access this bot.\n"
+                f"Then click 'Check Membership' below.\n\n"
+                f"Need help? Watch our tutorial! 👇"
+            )
             
             await update.message.reply_text(
                 message_text,
@@ -715,12 +774,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             # Updated: Include user_id in the WebApp URL for ad tracking
             web_app_url = f"{os.environ.get('RENDER_EXTERNAL_URL')}/verify?token={encoded_id}&user_id={update.effective_user.id}"
             
-            keyboard = [[InlineKeyboardButton("🔗 Join Group", web_app=WebAppInfo(url=web_app_url))]]
+            keyboard = [
+                [InlineKeyboardButton("🔗 Join Group", web_app=WebAppInfo(url=web_app_url))],
+                [InlineKeyboardButton("🎥 Watch Tutorial", url="https://t.me/team_secret_tutorial_video/5")]
+            ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
             await update.message.reply_text(
-                "🔐 This is a Protected Link\n\n"
-                "Click the button below to proceed.",
+                "🔐 *This is a Protected Link*\n\n"
+                "Click the button below to proceed.\n\n"
+                "Need help? Watch our tutorial! 👇",
                 reply_markup=reply_markup
             )
         else:
@@ -754,7 +817,7 @@ I help you keep your channel links safe & secure.
     
     support_channels = get_support_channels()
     if support_channels:
-        # Get channel info and create individual buttons
+        # Get channel info and create individual buttons (now only shows unjoined channels)
         channel_info = await get_channel_info_for_user(user_id)
         
         # Add individual channel buttons (split into rows of 2)
@@ -770,6 +833,9 @@ I help you keep your channel links safe & secure.
     
     keyboard.append([InlineKeyboardButton("🚀 Create Protected Link", callback_data="create_link")])
     
+    # Add tutorial button
+    keyboard.append([InlineKeyboardButton("🎥 Watch Tutorial", url="https://t.me/team_secret_tutorial_video/5")])
+    
     reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
     
     await update.message.reply_text(welcome_msg, reply_markup=reply_markup)
@@ -784,9 +850,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         is_member = await check_channel_membership(query.from_user.id, context)
         if is_member:
             await query.message.edit_text(
-                "✅ Verified!\n"
+                "✅ *Verified!*\n\n"
                 "You can now use the bot.\n\n"
-                "Use /help for commands."
+                "Use /help for commands.\n\n"
+                "🎥 Need help? Watch our tutorial: https://t.me/team_secret_tutorial_video/5",
+                parse_mode=ParseMode.MARKDOWN
             )
         else:
             await query.answer("❌ Not joined yet. Please join channel(s) first.", show_alert=True)
@@ -805,12 +873,16 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 # Updated: Include user_id in the WebApp URL for ad tracking
                 web_app_url = f"{os.environ.get('RENDER_EXTERNAL_URL')}/verify?token={encoded_id}&user_id={query.from_user.id}"
                 
-                keyboard = [[InlineKeyboardButton("🔗 Join Group", web_app=WebAppInfo(url=web_app_url))]]
+                keyboard = [
+                    [InlineKeyboardButton("🔗 Join Group", web_app=WebAppInfo(url=web_app_url))],
+                    [InlineKeyboardButton("🎥 Watch Tutorial", url="https://t.me/team_secret_tutorial_video/5")]
+                ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
                 await query.message.edit_text(
-                    "✅ Verified!\n\n"
-                    "You can now access the protected link.",
+                    "✅ *Verified!*\n\n"
+                    "You can now access the protected link.\n\n"
+                    "Need help? Watch our tutorial! 👇",
                     reply_markup=reply_markup
                 )
             else:
@@ -822,7 +894,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await query.message.reply_text(
             "To create a protected link, use:\n\n"
             "`/protect https://t.me/yourchannel`\n\n"
-            "Replace with your actual channel link.",
+            "Replace with your actual channel link.\n\n"
+            "🎥 *Need help? Watch our tutorial:* https://t.me/team_secret_tutorial_video/5",
             parse_mode=ParseMode.MARKDOWN
         )
     
@@ -844,10 +917,10 @@ async def protect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         logger.info(f"Checking membership for user {update.effective_user.id} in protect command")
         is_member = await check_channel_membership(update.effective_user.id, context)
         if not is_member:
-            # Get channel info and invite links
+            # Get channel info and invite links (now only shows unjoined channels)
             channel_info = await get_channel_info_for_user(update.effective_user.id)
             
-            # Create keyboard with separate buttons for each channel
+            # Create keyboard with separate buttons for each unjoined channel
             keyboard = []
             
             # Add individual channel buttons (split into rows of 2)
@@ -863,12 +936,21 @@ async def protect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             
             # Add check button
             keyboard.append([InlineKeyboardButton("✅ Check Membership", callback_data="check_join")])
+            
+            # Add tutorial button
+            keyboard.append([InlineKeyboardButton("🎥 Watch Tutorial", url="https://t.me/team_secret_tutorial_video/5")])
+            
             reply_markup = InlineKeyboardMarkup(keyboard)
             
             channel_count = len(support_channels)
+            joined_count = channel_info.get("joined_count", 0)
+            
             await update.message.reply_text(
-                f"🔐 Join our {channel_count} channel(s) first to use this bot.\n"
-                "Then click 'Check Membership' below.",
+                f"🔐 *Join Required*\n\n"
+                f"📊 *Progress:* {joined_count}/{channel_count} channels joined\n\n"
+                f"Join the remaining channel(s) first to use this bot.\n"
+                f"Then click 'Check Membership' below.\n\n"
+                f"Need help? Watch our tutorial! 👇",
                 reply_markup=reply_markup
             )
             return
@@ -879,7 +961,8 @@ async def protect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             "This works for:\n"
             "• Channels (public/private)\n"
             "• Groups (public/private)\n"
-            "• Supergroups",
+            "• Supergroups\n\n"
+            "🎥 *Need help? Watch our tutorial:* https://t.me/team_secret_tutorial_video/5",
             parse_mode=ParseMode.MARKDOWN
         )
         return
@@ -911,12 +994,13 @@ async def protect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     bot_username = (await context.bot.get_me()).username
     protected_link = f"https://t.me/{bot_username}?start={encoded_id}"
     
-    # Simple buttons
+    # Simple buttons with tutorial
     keyboard = [
         [
             InlineKeyboardButton("📤 Share", url=f"https://t.me/share/url?url={protected_link}&text=🔐 Protected Link - Join via secure invitation"),
             InlineKeyboardButton("❌ Revoke", callback_data=f"revoke_{encoded_id}")
-        ]
+        ],
+        [InlineKeyboardButton("🎥 Watch Tutorial", url="https://t.me/team_secret_tutorial_video/5")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -933,7 +1017,8 @@ async def protect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         f"📋 *Quick Actions:*\n"
         f"• Copy the link above\n"
         f"• Share with your audience\n"
-        f"• Revoke anytime with `/revoke {short_id}`",
+        f"• Revoke anytime with `/revoke {short_id}`\n\n"
+        f"🎥 *Need help? Watch our tutorial:* https://t.me/team_secret_tutorial_video/5",
         reply_markup=reply_markup,
         parse_mode=ParseMode.MARKDOWN
     )
@@ -945,10 +1030,10 @@ async def revoke_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if support_channels:
         is_member = await check_channel_membership(update.effective_user.id, context)
         if not is_member:
-            # Get channel info and invite links
+            # Get channel info and invite links (now only shows unjoined channels)
             channel_info = await get_channel_info_for_user(update.effective_user.id)
             
-            # Create keyboard with separate buttons for each channel
+            # Create keyboard with separate buttons for each unjoined channel
             keyboard = []
             
             # Add individual channel buttons (split into rows of 2)
@@ -964,12 +1049,21 @@ async def revoke_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             
             # Add check button
             keyboard.append([InlineKeyboardButton("✅ Check Membership", callback_data="check_join")])
+            
+            # Add tutorial button
+            keyboard.append([InlineKeyboardButton("🎥 Watch Tutorial", url="https://t.me/team_secret_tutorial_video/5")])
+            
             reply_markup = InlineKeyboardMarkup(keyboard)
             
             channel_count = len(support_channels)
+            joined_count = channel_info.get("joined_count", 0)
+            
             await update.message.reply_text(
-                f"🔐 Join our {channel_count} channel(s) first to use this bot.\n"
-                "Then click 'Check Membership' below.",
+                f"🔐 *Join Required*\n\n"
+                f"📊 *Progress:* {joined_count}/{channel_count} channels joined\n\n"
+                f"Join the remaining channel(s) first to use this bot.\n"
+                f"Then click 'Check Membership' below.\n\n"
+                f"Need help? Watch our tutorial! 👇",
                 reply_markup=reply_markup
             )
             return
@@ -1001,9 +1095,12 @@ async def revoke_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 callback_data=f"revoke_{link['_id']}"
             )])
         
+        # Add tutorial button
+        keyboard.append([InlineKeyboardButton("🎥 Watch Tutorial", url="https://t.me/team_secret_tutorial_video/5")])
+        
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        message += "\nClick a button below to revoke."
+        message += "\nClick a button below to revoke.\n\n🎥 *Need help? Watch our tutorial:* https://t.me/team_secret_tutorial_video/5"
         
         await update.message.reply_text(
             message,
@@ -1045,7 +1142,8 @@ async def revoke_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await update.message.reply_text(
         f"✅ *Link Revoked!*\n\n"
         f"Link `{link_data.get('short_id', link_id)}` has been permanently revoked.\n\n"
-        f"⚠️ All future access attempts will be blocked.",
+        f"⚠️ All future access attempts will be blocked.\n\n"
+        f"🎥 *Need help? Watch our tutorial:* https://t.me/team_secret_tutorial_video/5",
         parse_mode=ParseMode.MARKDOWN
     )
 
@@ -1085,7 +1183,8 @@ async def handle_revoke_link(update: Update, context: ContextTypes.DEFAULT_TYPE,
         f"✅ *Link Revoked!*\n\n"
         f"Link `{link_data.get('short_id', link_id[:8])}` has been revoked.\n"
         f"👥 Final Clicks: {link_data.get('clicks', 0)}\n\n"
-        f"⚠️ All access has been permanently blocked.",
+        f"⚠️ All access has been permanently blocked.\n\n"
+        f"🎥 *Need help? Watch our tutorial:* https://t.me/team_secret_tutorial_video/5",
         parse_mode=ParseMode.MARKDOWN
     )
 
@@ -1111,7 +1210,8 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             "• Supports all media types\n"
             "• Preserves formatting\n"
             "• Tracks delivery\n"
-            "• No rate limiting",
+            "• No rate limiting\n\n"
+            "🎥 *Tutorial:* https://t.me/team_secret_tutorial_video/5",
             parse_mode=ParseMode.MARKDOWN
         )
         return
@@ -1119,7 +1219,8 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     total_users = users_collection.count_documents({})
     keyboard = [
         [InlineKeyboardButton("✅ Confirm Broadcast", callback_data="confirm_broadcast")],
-        [InlineKeyboardButton("❌ Cancel", callback_data="cancel_broadcast")]
+        [InlineKeyboardButton("❌ Cancel", callback_data="cancel_broadcast")],
+        [InlineKeyboardButton("🎥 Watch Tutorial", url="https://t.me/team_secret_tutorial_video/5")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -1132,7 +1233,8 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         f"• 📨 Recipients: `{total_users}` users\n"
         f"• 📝 Type: {content_type}\n"
         f"• ⚡ Delivery: Instant\n\n"
-        f"Are you sure you want to proceed?",
+        f"Are you sure you want to proceed?\n\n"
+        f"🎥 *Tutorial:* https://t.me/team_secret_tutorial_video/5",
         reply_markup=reply_markup,
         parse_mode=ParseMode.MARKDOWN
     )
@@ -1180,7 +1282,8 @@ async def handle_broadcast_confirmation(update: Update, context: ContextTypes.DE
         f"• ❌ Failed: `{failed}`\n"
         f"• 📈 Success Rate: `{success_rate:.1f}%`\n"
         f"• ⏰ Time: {datetime.datetime.now().strftime('%H:%M:%S')}\n\n"
-        f"✨ Broadcast logged in system.",
+        f"✨ Broadcast logged in system.\n\n"
+        f"🎥 *Tutorial:* https://t.me/team_secret_tutorial_video/5",
         parse_mode=ParseMode.MARKDOWN
     )
 
@@ -1234,7 +1337,8 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         f"• 🗄️ Database: 🟢 Operational\n"
         f"• 🤖 Bot: 🟢 Online\n"
         f"• ⚡ Uptime: 100%\n"
-        f"• 🕐 Last Update: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        f"• 🕐 Last Update: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        f"🎥 *Tutorial:* https://t.me/team_secret_tutorial_video/5",
         parse_mode=ParseMode.MARKDOWN
     )
 
@@ -1248,10 +1352,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         logger.info(f"Checking membership for user {user_id} in help command")
         is_member = await check_channel_membership(user_id, context)
         if not is_member:
-            # Get channel info and invite links
+            # Get channel info and invite links (now only shows unjoined channels)
             channel_info = await get_channel_info_for_user(user_id)
             
-            # Create keyboard with separate buttons for each channel
+            # Create keyboard with separate buttons for each unjoined channel
             keyboard = []
             
             # Add individual channel buttons (split into rows of 2)
@@ -1267,12 +1371,21 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             
             # Add check button
             keyboard.append([InlineKeyboardButton("✅ Check Membership", callback_data="check_join")])
+            
+            # Add tutorial button
+            keyboard.append([InlineKeyboardButton("🎥 Watch Tutorial", url="https://t.me/team_secret_tutorial_video/5")])
+            
             reply_markup = InlineKeyboardMarkup(keyboard)
             
             channel_count = len(support_channels)
+            joined_count = channel_info.get("joined_count", 0)
+            
             await update.message.reply_text(
-                f"🔐 Join our {channel_count} channel(s) first to use this bot.\n"
-                "Then click 'Check Membership' below.",
+                f"🔐 *Join Required*\n\n"
+                f"📊 *Progress:* {joined_count}/{channel_count} channels joined\n\n"
+                f"Join the remaining channel(s) first to use this bot.\n"
+                f"Then click 'Check Membership' below.\n\n"
+                f"Need help? Watch our tutorial! 👇",
                 reply_markup=reply_markup
             )
             return
@@ -1281,7 +1394,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     
     support_channels = get_support_channels()
     if support_channels:
-        # Get channel info and create individual buttons
+        # Get channel info and create individual buttons (now only shows unjoined channels)
         channel_info = await get_channel_info_for_user(user_id)
         
         # Add individual channel buttons (split into rows of 2)
@@ -1294,6 +1407,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                     row_buttons.append(InlineKeyboardButton(button_text, url=channel["invite_link"]))
             if row_buttons:
                 keyboard.append(row_buttons)
+    
+    # Add tutorial button
+    keyboard.append([InlineKeyboardButton("🎥 Watch Tutorial", url="https://t.me/team_secret_tutorial_video/5")])
     
     reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
     
@@ -1320,7 +1436,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "• Works with any t.me link\n"
         "• Monitor link analytics\n"
         "• Revoke unused links\n"
-        "• Join our support channels",
+        "• Join our support channels\n\n"
+        "🎥 *Watch our tutorial for detailed instructions:* https://t.me/team_secret_tutorial_video/5",
         reply_markup=reply_markup,
         parse_mode=ParseMode.MARKDOWN
     )
@@ -1432,7 +1549,8 @@ async def verify_page(request: Request, token: str, user_id: Optional[int] = Non
         {
             "request": request, 
             "token": token,
-            "user_id": user_id  # Pass user_id to template for tracking
+            "user_id": user_id,  # Pass user_id to template for tracking
+            "tutorial_url": "https://t.me/team_secret_tutorial_video/5"  # Add tutorial URL
         }
     )
 
@@ -1480,13 +1598,17 @@ async def check_membership_api(token: str, user_id: int):
         logger.error(f"Failed to track page view: {e}")
     
     # Get channel membership info WITH CHANNEL TITLES AND LOGOS
+    # This now only returns unjoined channels
     channel_info = await get_channel_info_for_user(user_id)
     
     return {
         "is_member": channel_info["is_member"],
-        "channels": channel_info["channels"],  # Now includes channel_title and logo_url
+        "channels": channel_info["channels"],  # Now includes only unjoined channels
         "channel_count": channel_info["channel_count"],
-        "invite_link": channel_info["invite_link"]
+        "invite_link": channel_info["invite_link"],
+        "joined_count": channel_info.get("joined_count", 0),
+        "total_channels": channel_info.get("total_channels", 0),
+        "tutorial_url": "https://t.me/team_secret_tutorial_video/5"  # Add tutorial URL
     }
 
 @app.get("/channel_photo/{channel_id}")
@@ -1581,7 +1703,8 @@ async def join_page(request: Request, token: str, user_id: int):
     return templates.TemplateResponse("join.html", {
         "request": request, 
         "token": token,
-        "user_id": user_id  # Pass user_id for tracking
+        "user_id": user_id,  # Pass user_id for tracking
+        "tutorial_url": "https://t.me/team_secret_tutorial_video/5"  # Add tutorial URL
     })
 
 @app.get("/getgrouplink/{token}")
@@ -1644,12 +1767,13 @@ async def root():
     return {
         "status": "ok",
         "service": "LinkShield Pro",
-        "version": "2.1.0",
+        "version": "2.2.0",
         "time": datetime.datetime.now().isoformat(),
         "database": db_status,
         "stats": {
             "total_users": total_users,
             "active_links": active_links,
             "total_ad_impressions": total_ads
-        }
+        },
+        "tutorial_url": "https://t.me/team_secret_tutorial_video/5"
     }

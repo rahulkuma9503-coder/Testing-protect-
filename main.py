@@ -5,7 +5,7 @@ import base64
 import asyncio
 import datetime
 import io
-import requests
+import requests  # Added import
 from typing import Optional, List, Dict, Any
 from pymongo import MongoClient
 from fastapi import FastAPI, Request, Response, HTTPException
@@ -248,7 +248,7 @@ async def get_channel_invite_links(context: ContextTypes.DEFAULT_TYPE, channels:
     return channel_links
 
 async def check_channel_membership(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    """Check if user is member of ALL support channels (must be present in group)."""
+    """Check if user is member of ALL support channels."""
     support_channels = get_support_channels()
     if not support_channels:
         return True
@@ -278,51 +278,46 @@ async def check_channel_membership(user_id: int, context: ContextTypes.DEFAULT_T
                 chat_member = await context.bot.get_chat_member(chat_id=chat_id, user_id=user_id)
                 logger.info(f"DEBUG: User {user_id} status in {channel}: {chat_member.status}")
                 
-                # Check if user is PRESENT in the chat (not LEFT, not BANNED)
-                # Only these statuses mean user is actually in the group:
-                # - ChatMember.MEMBER: Regular member
-                # - ChatMember.ADMINISTRATOR: Admin
-                # - ChatMember.OWNER: Creator/owner
-                # - ChatMember.RESTRICTED: Restricted but still in group
-                if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER, ChatMember.RESTRICTED]:
-                    logger.info(f"✅ User {user_id} is PRESENT in {channel} (status: {chat_member.status})")
+                # Check if user is a member
+                if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
+                    logger.info(f"✅ User {user_id} is a member of {channel}")
                     continue
                 else:
-                    # User has LEFT status or BANNED status
-                    logger.info(f"❌ User {user_id} is NOT in {channel}. Status: {chat_member.status}")
+                    logger.info(f"❌ User {user_id} is not a member of {channel}. Status: {chat_member.status}")
                     return False
                     
             except BadRequest as e:
                 error_msg = str(e).lower()
                 logger.error(f"BadRequest error for channel {channel}: {error_msg}")
                 
-                # If we get BadRequest, user is definitely NOT in the chat
-                # Common errors when user is not in chat:
-                # - "user not found"
-                # - "user not participant"
-                # - "user not a member"
-                if any(phrase in error_msg for phrase in ["user not found", "user not participant", "user not a member", "chat not found"]):
-                    logger.warning(f"User {user_id} is NOT in {channel} (BadRequest: {error_msg})")
+                if "user not found" in error_msg:
+                    logger.warning(f"User {user_id} not found in {channel}. They might have left or been kicked.")
                     return False
-                elif any(phrase in error_msg for phrase in ["bot was kicked", "bot is not a member", "bot can't access"]):
-                    logger.warning(f"Bot cannot access {channel} to check membership: {error_msg}")
-                    # If bot can't access, we can't verify, so deny access for safety
+                elif "chat not found" in error_msg:
+                    logger.warning(f"Chat {channel} not found. Bot may not have access.")
+                    return False
+                elif "user not participant" in error_msg:
+                    logger.info(f"User {user_id} is not a participant in {channel}")
+                    return False
+                elif "bot was kicked" in error_msg:
+                    logger.warning(f"Bot was kicked from {channel}. Cannot check membership.")
+                    return False
+                elif "bot is not a member" in error_msg:
+                    logger.warning(f"Bot is not a member of {channel}. Cannot check membership.")
                     return False
                 else:
                     logger.error(f"Unknown BadRequest error for {channel}: {e}")
-                    # Deny access on unknown error for safety
                     return False
                     
-            except Exception as e:
-                logger.error(f"❌ Channel check error for {channel}: {e}")
-                # Deny access on any other error
-                return False
+        except Exception as e:
+            logger.error(f"❌ Channel check error for {channel}: {e}")
+            return False
     
     logger.info(f"✅ All membership checks passed for user {user_id}")
     return True
 
 async def verify_user_membership(user_id: int) -> bool:
-    """Check if user is member of ALL support channels without context (must be present in group)."""
+    """Check if user is member of ALL support channels without context."""
     from telegram import Bot
     
     support_channels = get_support_channels()
@@ -351,46 +346,44 @@ async def verify_user_membership(user_id: int) -> bool:
                     except ValueError:
                         chat_id = f"@{channel}"
                 
-                logger.info(f"DEBUG (verify): Checking presence for user {user_id} in channel {channel}")
+                logger.info(f"DEBUG (verify): Checking membership for user {user_id} in channel {channel}")
                 
                 try:
                     chat_member = await bot.get_chat_member(chat_id=chat_id, user_id=user_id)
                     logger.info(f"DEBUG (verify): User {user_id} status in {channel}: {chat_member.status}")
                     
-                    # Check if user is PRESENT in the chat (not LEFT, not BANNED)
-                    # Only these statuses mean user is actually in the group:
-                    # - ChatMember.MEMBER: Regular member
-                    # - ChatMember.ADMINISTRATOR: Admin
-                    # - ChatMember.OWNER: Creator/owner
-                    # - ChatMember.RESTRICTED: Restricted but still in group
-                    if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER, ChatMember.RESTRICTED]:
-                        logger.info(f"✅ User {user_id} is PRESENT in {channel} (status: {chat_member.status})")
+                    if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
+                        logger.info(f"✅ User {user_id} is a member of {channel}")
                         continue
                     else:
-                        # User has LEFT status or BANNED status
-                        logger.info(f"❌ User {user_id} is NOT in {channel}. Status: {chat_member.status}")
+                        logger.info(f"❌ User {user_id} is not a member of {channel}. Status: {chat_member.status}")
                         return False
                         
                 except BadRequest as e:
                     error_msg = str(e).lower()
                     logger.error(f"BadRequest error for channel {channel}: {error_msg}")
                     
-                    # If we get BadRequest, user is definitely NOT in the chat
-                    if any(phrase in error_msg for phrase in ["user not found", "user not participant", "user not a member", "chat not found"]):
-                        logger.warning(f"User {user_id} is NOT in {channel} (BadRequest: {error_msg})")
+                    if "user not found" in error_msg:
+                        logger.warning(f"User {user_id} not found in {channel}")
                         return False
-                    elif any(phrase in error_msg for phrase in ["bot was kicked", "bot is not a member", "bot can't access"]):
-                        logger.warning(f"Bot cannot access {channel} to check membership: {error_msg}")
-                        # If bot can't access, we can't verify, so deny access for safety
+                    elif "chat not found" in error_msg:
+                        logger.warning(f"Chat {channel} not found.")
+                        return False
+                    elif "user not participant" in error_msg:
+                        logger.info(f"User {user_id} is not a participant in {channel}")
+                        return False
+                    elif "bot was kicked" in error_msg:
+                        logger.warning(f"Bot was kicked from {channel}")
+                        return False
+                    elif "bot is not a member" in error_msg:
+                        logger.warning(f"Bot is not a member of {channel}")
                         return False
                     else:
                         logger.error(f"Unknown BadRequest error for {channel}: {e}")
-                        # Deny access on unknown error for safety
                         return False
                         
             except Exception as e:
                 logger.error(f"Error processing channel {channel}: {e}")
-                # Deny access on any error
                 return False
                 
         logger.info(f"✅ All membership checks passed for user {user_id}")
@@ -548,38 +541,26 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                     chat_member = await bot.get_chat_member(chat_id=chat_id, user_id=user_id)
                     logger.info(f"DEBUG get_channel_info: User {user_id} status in {channel}: {chat_member.status}")
                     
-                    # Check if user is PRESENT in the chat (not LEFT, not BANNED)
-                    # Only these statuses mean user is actually in the group:
-                    # - ChatMember.MEMBER: Regular member
-                    # - ChatMember.ADMINISTRATOR: Admin
-                    # - ChatMember.OWNER: Creator/owner
-                    # - ChatMember.RESTRICTED: Restricted but still in group
-                    if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER, ChatMember.RESTRICTED]:
+                    if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
                         is_channel_member = True
-                        logger.info(f"✅ User {user_id} is PRESENT in {channel} (status: {chat_member.status})")
+                        logger.info(f"✅ User {user_id} is member of {channel}")
                     else:
-                        # User has LEFT status or BANNED status
-                        logger.info(f"❌ User {user_id} is NOT in {channel}. Status: {chat_member.status}")
+                        logger.info(f"❌ User {user_id} is NOT member of {channel}. Status: {chat_member.status}")
                         
                 except BadRequest as e:
                     error_msg = str(e).lower()
-                    logger.error(f"Error checking membership for {channel}: {e}")
-                    
-                    # If we get BadRequest, user is definitely NOT in the chat
-                    if any(phrase in error_msg for phrase in ["user not found", "user not participant", "user not a member", "chat not found"]):
-                        logger.warning(f"User {user_id} is NOT in {channel}")
-                        is_channel_member = False
-                    elif any(phrase in error_msg for phrase in ["bot was kicked", "bot is not a member", "bot can't access"]):
-                        logger.warning(f"Bot cannot access {channel} to check membership")
-                        # If bot can't access, we can't verify, so deny access for safety
-                        is_channel_member = False
+                    if "user not found" in error_msg:
+                        logger.warning(f"User {user_id} not found in {channel}")
+                    elif "chat not found" in error_msg:
+                        logger.warning(f"Chat {channel} not found")
+                    elif "user not participant" in error_msg:
+                        logger.info(f"User {user_id} is not participant in {channel}")
+                    elif "bot was kicked" in error_msg or "bot is not a member" in error_msg:
+                        logger.warning(f"Bot cannot access {channel}")
                     else:
-                        logger.error(f"Unknown BadRequest error for {channel}: {e}")
-                        # Deny access on unknown error for safety
-                        is_channel_member = False
+                        logger.error(f"Error checking membership for {channel}: {e}")
                 except Exception as e:
                     logger.error(f"Failed to check membership for {channel}: {e}")
-                    is_channel_member = False
                 
                 if not is_channel_member:
                     is_member = False
@@ -597,8 +578,7 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                     "is_member": is_channel_member,
                     "display_name": chat_title,
                     "username": chat_username if 'chat_username' in locals() else None,
-                    "logo_url": logo_url,
-                    "user_status": "present" if is_channel_member else "not_present"
+                    "logo_url": logo_url
                 })
                 
             except Exception as e:
@@ -612,8 +592,7 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                     "invite_link": f"https://t.me/{channel[1:]}" if channel.startswith('@') else f"https://t.me/c/{channel[4:]}" if channel.startswith('-100') else f"https://t.me/{channel}",
                     "is_member": False,
                     "display_name": chat_title,
-                    "logo_url": None,
-                    "user_status": "error_checking"
+                    "logo_url": None
                 })
                 is_member = False
         
@@ -640,8 +619,7 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                 "invite_link": f"https://t.me/{channel[1:]}" if channel.startswith('@') else f"https://t.me/c/{channel[4:]}" if channel.startswith('-100') else f"https://t.me/{channel}",
                 "is_member": False,
                 "display_name": chat_title,
-                "logo_url": None,
-                "user_status": "error"
+                "logo_url": None
             })
         
         return {
@@ -684,29 +662,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             if context.args:
                 encoded_id = context.args[0]
                 callback_data = f"check_join_{encoded_id}"
-                
-                message_text = (
-                    f"🔐 *Access Required*\n\n"
-                    f"To access this protected link, you must be **present** in our support group(s).\n\n"
-                    f"**Important:**\n"
-                    f"• You must be **ACTUALLY IN THE GROUP**\n"
-                    f"• Muted/Restricted users ARE allowed (they're in the group)\n"
-                    f"• Users who LEFT or were KICKED are NOT allowed\n\n"
-                    f"Join the group(s) below and click 'Check Membership' to continue."
-                )
             else:
-                # For regular bot usage
                 callback_data = "check_join"
-                
-                message_text = (
-                    f"🔐 *Membership Required*\n\n"
-                    f"To use this bot, you must be **present** in our support group(s).\n\n"
-                    f"**Important:**\n"
-                    f"• You must be **ACTUALLY IN THE GROUP**\n"
-                    f"• Muted/Restricted users ARE allowed (they're in the group)\n"
-                    f"• Users who LEFT or were KICKED are NOT allowed\n\n"
-                    f"Join the group(s) below and click 'Check Membership' to continue."
-                )
             
             # Create keyboard with separate buttons for each channel
             keyboard = []
@@ -727,10 +684,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             
             reply_markup = InlineKeyboardMarkup(keyboard)
             
+            channel_count = len(support_channels)
+            if context.args:
+                message_text = (
+                    f"🔐 *This is a Protected Link*\n\n"
+                    f"Join our {channel_count} channel(s) first to access this link.\n"
+                    f"Then click 'Check Membership' below."
+                )
+            else:
+                message_text = (
+                    f"🔐 Join our {channel_count} channel(s) first to use this bot.\n"
+                    "Then click 'Check Membership' below."
+                )
+            
             await update.message.reply_text(
                 message_text,
                 reply_markup=reply_markup,
-                parse_mode=ParseMode.MARKDOWN
+                parse_mode=ParseMode.MARKDOWN if context.args else None
             )
             return
     
@@ -814,14 +784,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         is_member = await check_channel_membership(query.from_user.id, context)
         if is_member:
             await query.message.edit_text(
-                "✅ *Verified!*\n\n"
-                "You are **present** in the required group(s).\n"
+                "✅ Verified!\n"
                 "You can now use the bot.\n\n"
-                "Use /help for commands.",
-                parse_mode=ParseMode.MARKDOWN
+                "Use /help for commands."
             )
         else:
-            await query.answer("❌ You are NOT present in the group(s). Please join and STAY in the group(s) to use the bot.", show_alert=True)
+            await query.answer("❌ Not joined yet. Please join channel(s) first.", show_alert=True)
     
     elif query.data.startswith("check_join_"):
         # Handle check join for protected links
@@ -841,16 +809,14 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
                 await query.message.edit_text(
-                    "✅ *Verified!*\n\n"
-                    "You are **present** in the required group(s).\n"
+                    "✅ Verified!\n\n"
                     "You can now access the protected link.",
-                    reply_markup=reply_markup,
-                    parse_mode=ParseMode.MARKDOWN
+                    reply_markup=reply_markup
                 )
             else:
                 await query.message.edit_text("❌ Link expired or revoked")
         else:
-            await query.answer("❌ You are NOT present in the group(s). Please join and STAY in the group(s) to access this link.", show_alert=True)
+            await query.answer("❌ Not joined yet. Please join channel(s) first.", show_alert=True)
     
     elif query.data == "create_link":
         await query.message.reply_text(
@@ -881,16 +847,6 @@ async def protect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # Get channel info and invite links
             channel_info = await get_channel_info_for_user(update.effective_user.id)
             
-            message_text = (
-                f"🔐 *Membership Required*\n\n"
-                f"To create protected links, you must be **present** in our support group(s).\n\n"
-                f"**Important:**\n"
-                f"• You must be **ACTUALLY IN THE GROUP**\n"
-                f"• Muted/Restricted users ARE allowed (they're in the group)\n"
-                f"• Users who LEFT or were KICKED are NOT allowed\n\n"
-                f"Join the group(s) below and click 'Check Membership' to continue."
-            )
-            
             # Create keyboard with separate buttons for each channel
             keyboard = []
             
@@ -909,10 +865,11 @@ async def protect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             keyboard.append([InlineKeyboardButton("✅ Check Membership", callback_data="check_join")])
             reply_markup = InlineKeyboardMarkup(keyboard)
             
+            channel_count = len(support_channels)
             await update.message.reply_text(
-                message_text,
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.MARKDOWN
+                f"🔐 Join our {channel_count} channel(s) first to use this bot.\n"
+                "Then click 'Check Membership' below.",
+                reply_markup=reply_markup
             )
             return
     
@@ -991,16 +948,6 @@ async def revoke_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             # Get channel info and invite links
             channel_info = await get_channel_info_for_user(update.effective_user.id)
             
-            message_text = (
-                f"🔐 *Membership Required*\n\n"
-                f"To revoke links, you must be **present** in our support group(s).\n\n"
-                f"**Important:**\n"
-                f"• You must be **ACTUALLY IN THE GROUP**\n"
-                f"• Muted/Restricted users ARE allowed (they're in the group)\n"
-                f"• Users who LEFT or were KICKED are NOT allowed\n\n"
-                f"Join the group(s) below and click 'Check Membership' to continue."
-            )
-            
             # Create keyboard with separate buttons for each channel
             keyboard = []
             
@@ -1019,10 +966,11 @@ async def revoke_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             keyboard.append([InlineKeyboardButton("✅ Check Membership", callback_data="check_join")])
             reply_markup = InlineKeyboardMarkup(keyboard)
             
+            channel_count = len(support_channels)
             await update.message.reply_text(
-                message_text,
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.MARKDOWN
+                f"🔐 Join our {channel_count} channel(s) first to use this bot.\n"
+                "Then click 'Check Membership' below.",
+                reply_markup=reply_markup
             )
             return
     
@@ -1303,16 +1251,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             # Get channel info and invite links
             channel_info = await get_channel_info_for_user(user_id)
             
-            message_text = (
-                f"🔐 *Membership Required*\n\n"
-                f"To use the bot, you must be **present** in our support group(s).\n\n"
-                f"**Important:**\n"
-                f"• You must be **ACTUALLY IN THE GROUP**\n"
-                f"• Muted/Restricted users ARE allowed (they're in the group)\n"
-                f"• Users who LEFT or were KICKED are NOT allowed\n\n"
-                f"Join the group(s) below and click 'Check Membership' to continue."
-            )
-            
             # Create keyboard with separate buttons for each channel
             keyboard = []
             
@@ -1331,10 +1269,11 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             keyboard.append([InlineKeyboardButton("✅ Check Membership", callback_data="check_join")])
             reply_markup = InlineKeyboardMarkup(keyboard)
             
+            channel_count = len(support_channels)
             await update.message.reply_text(
-                message_text,
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.MARKDOWN
+                f"🔐 Join our {channel_count} channel(s) first to use this bot.\n"
+                "Then click 'Check Membership' below.",
+                reply_markup=reply_markup
             )
             return
     

@@ -286,15 +286,6 @@ async def check_channel_membership(user_id: int, context: ContextTypes.DEFAULT_T
                 
                 # Check if user is a member
                 if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
-                    # Track that user has joined this channel
-                    user_joined_channels.update_one(
-                        {"user_id": user_id, "channel_id": channel},
-                        {"$set": {
-                            "joined_at": datetime.datetime.now(),
-                            "last_verified": datetime.datetime.now()
-                        }},
-                        upsert=True
-                    )
                     logger.info(f"✅ User {user_id} is a member of {channel}")
                     continue
                 else:
@@ -368,15 +359,6 @@ async def verify_user_membership(user_id: int) -> bool:
                     logger.info(f"DEBUG (verify): User {user_id} status in {channel}: {chat_member.status}")
                     
                     if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
-                        # Track that user has joined this channel
-                        user_joined_channels.update_one(
-                            {"user_id": user_id, "channel_id": channel},
-                            {"$set": {
-                                "joined_at": datetime.datetime.now(),
-                                "last_verified": datetime.datetime.now()
-                            }},
-                            upsert=True
-                        )
                         logger.info(f"✅ User {user_id} is a member of {channel}")
                         continue
                     else:
@@ -495,7 +477,7 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
         channels_info = []
         is_member = True
         
-        # Get channels user has already joined from database
+        # Get channels user has already joined from database (only track after successful check)
         joined_channels = list(user_joined_channels.find({"user_id": user_id}))
         joined_channel_ids = {jc["channel_id"] for jc in joined_channels}
         
@@ -576,15 +558,6 @@ async def get_channel_info_for_user(user_id: int) -> Dict[str, Any]:
                         
                         if chat_member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
                             is_channel_member = True
-                            # Track that user has joined this channel
-                            user_joined_channels.update_one(
-                                {"user_id": user_id, "channel_id": channel},
-                                {"$set": {
-                                    "joined_at": datetime.datetime.now(),
-                                    "last_verified": datetime.datetime.now()
-                                }},
-                                upsert=True
-                            )
                             logger.info(f"✅ User {user_id} is member of {channel}")
                         else:
                             logger.info(f"❌ User {user_id} is NOT member of {channel}. Status: {chat_member.status}")
@@ -817,19 +790,22 @@ I help you keep your channel links safe & secure.
     
     support_channels = get_support_channels()
     if support_channels:
-        # Get channel info and create individual buttons (now only shows unjoined channels)
-        channel_info = await get_channel_info_for_user(user_id)
-        
-        # Add individual channel buttons (split into rows of 2)
-        for i in range(0, len(channel_info["channels"]), 2):
-            row_buttons = []
-            for j in range(2):
-                if i + j < len(channel_info["channels"]):
-                    channel = channel_info["channels"][i + j]
-                    button_text = f"🌟 {channel['display_name'][:15]}"  # Limit text length
-                    row_buttons.append(InlineKeyboardButton(button_text, url=channel["invite_link"]))
-            if row_buttons:
-                keyboard.append(row_buttons)
+        # Check if user is a member of all channels
+        is_member = await check_channel_membership(user_id, context)
+        if not is_member:
+            # Get channel info and create individual buttons (now only shows unjoined channels)
+            channel_info = await get_channel_info_for_user(user_id)
+            
+            # Add individual channel buttons (split into rows of 2)
+            for i in range(0, len(channel_info["channels"]), 2):
+                row_buttons = []
+                for j in range(2):
+                    if i + j < len(channel_info["channels"]):
+                        channel = channel_info["channels"][i + j]
+                        button_text = f"🌟 {channel['display_name'][:15]}"  # Limit text length
+                        row_buttons.append(InlineKeyboardButton(button_text, url=channel["invite_link"]))
+                if row_buttons:
+                    keyboard.append(row_buttons)
     
     keyboard.append([InlineKeyboardButton("🚀 Create Protected Link", callback_data="create_link")])
     
@@ -849,6 +825,18 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         logger.info(f"User {query.from_user.id} clicked 'Check Membership'")
         is_member = await check_channel_membership(query.from_user.id, context)
         if is_member:
+            # Track joined channels in database after successful check
+            support_channels = get_support_channels()
+            for channel in support_channels:
+                user_joined_channels.update_one(
+                    {"user_id": query.from_user.id, "channel_id": channel},
+                    {"$set": {
+                        "joined_at": datetime.datetime.now(),
+                        "last_verified": datetime.datetime.now()
+                    }},
+                    upsert=True
+                )
+            
             await query.message.edit_text(
                 "✅ *Verified!*\n\n"
                 "You can now use the bot.\n\n"
@@ -866,6 +854,18 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         
         is_member = await check_channel_membership(query.from_user.id, context)
         if is_member:
+            # Track joined channels in database after successful check
+            support_channels = get_support_channels()
+            for channel in support_channels:
+                user_joined_channels.update_one(
+                    {"user_id": query.from_user.id, "channel_id": channel},
+                    {"$set": {
+                        "joined_at": datetime.datetime.now(),
+                        "last_verified": datetime.datetime.now()
+                    }},
+                    upsert=True
+                )
+            
             # User has joined, show protected link
             link_data = links_collection.find_one({"_id": encoded_id, "active": True})
             
@@ -1699,6 +1699,18 @@ async def join_page(request: Request, token: str, user_id: int):
         })
     except Exception as e:
         logger.error(f"Failed to track join page view: {e}")
+    
+    # Track that user has joined all channels
+    support_channels = get_support_channels()
+    for channel in support_channels:
+        user_joined_channels.update_one(
+            {"user_id": user_id, "channel_id": channel},
+            {"$set": {
+                "joined_at": datetime.datetime.now(),
+                "last_verified": datetime.datetime.now()
+            }},
+            upsert=True
+        )
     
     return templates.TemplateResponse("join.html", {
         "request": request, 
